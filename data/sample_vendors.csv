@@ -1,0 +1,31 @@
+vendor_id,vendor_name,category,quoted_price,market_avg_price,on_time_delivery_rate,avg_delay_days,defect_rate,quality_rating,certifications_count,compliance_violations,years_in_business,completed_contracts,annual_revenue,debt_to_equity_ratio
+V001,Atlas Industrial Supply,Raw Materials,48200,50000,0.96,0.8,0.02,8.9,4,0,14,132,18500000,0.42
+V002,Beacon Manufacturing Co,Raw Materials,52500,50000,0.91,1.5,0.035,8.1,3,0,9,98,12300000,0.61
+V003,Crestline Components,Electronics,31000,32500,0.88,2.1,0.04,7.6,2,1,6,54,6100000,0.85
+V004,Delta Forge Metals,Raw Materials,49800,50000,0.94,1.0,0.025,8.5,4,0,,110,15200000,0.5
+V005,Everest Logistics Partners,Logistics,21500,22000,0.99,0.3,0.01,9.2,5,0,18,210,22000000,0.31
+V006,Falcon Tech Components,Electronics,29500,32500,0.79,4.2,0.07,6.8,1,2,4,31,3200000,1.35
+V007,Granite Build Materials,Raw Materials,53000,50000,0.85,2.8,0.05,7.0,2,1,11,87,9800000,0.72
+V008,Horizon Circuit Systems,Electronics,33800,32500,0.93,1.2,0.022,8.7,4,0,8,76,,0.55
+V009,Ironclad Fasteners Ltd,Raw Materials,47500,50000,0.9,1.8,0.03,7.9,3,0,7,63,7400000,0.68
+V010,Juniper Freight Solutions,Logistics,23000,22000,0.82,3.5,0.045,7.2,2,1,5,42,4100000,0.95
+V011,Keystone Electronics,Electronics,9800,32500,0.97,0.5,0.008,9.6,5,0,2,9,,0.15
+V012,Lumen Power Devices,Electronics,34500,32500,0.87,2.0,0.038,7.5,3,1,10,91,10500000,0.58
+V013,Meridian Chemical Supply,Raw Materials,51200,50000,0.92,1.4,,8.0,3,0,13,120,16800000,0.47
+V014,Northstar Cargo Systems,Logistics,22500,22000,0.95,0.9,0.018,8.6,4,0,15,175,19200000,0.38
+V015,Orbit Industrial Parts,Raw Materials,49000,50000,0.89,2.2,0.033,7.7,2,1,,58,5900000,0.79
+V016,Pinnacle Circuit Works,Electronics,32000,32500,0.9,1.6,0.028,8.0,3,0,8,70,8300000,0.62
+V017,Quarry Stone Materials,Raw Materials,54800,50000,0.75,5.5,0.062,6.5,1,2,3,25,2800000,1.42
+V018,Redwood Transport Co,Logistics,24200,22000,0.86,2.9,0.04,7.3,2,1,6,48,4700000,0.88
+V019,Summit Fastening Solutions,Raw Materials,48800,50000,0.93,1.1,0.024,8.4,4,0,12,108,14100000,0.49
+V020,Titanium Edge Manufacturing,Raw Materials,50500,50000,0.91,1.7,0.031,7.8,3,0,,82,9200000,0.65
+V021,Union Circuit Depot,Electronics,3500,32500,0.6,8.0,0.15,4.2,0,4,1,4,650000,2.85
+V022,Vertex Logistics Group,Logistics,21800,22000,0.97,0.6,0.015,8.8,4,0,16,190,20500000,0.35
+V023,Westfield Raw Materials,Raw Materials,49500,50000,,1.3,0.026,8.2,3,0,10,95,11700000,0.53
+V024,Xenon Power Electronics,Electronics,33200,32500,0.88,1.9,0.032,7.6,3,1,9,79,9500000,0.6
+V025,Yellowstone Metal Works,Raw Materials,52100,50000,0.84,3.0,0.048,7.1,2,1,7,60,6600000,0.81
+V026,Zephyr Freight Networks,Logistics,23400,22000,0.9,1.9,0.03,7.9,3,0,11,102,13400000,0.56
+V027,Apex Chemical Solutions,Raw Materials,50900,50000,0.87,2.3,0.036,7.6,2,1,8,71,8800000,0.7
+V028,Bridgeway Component Supply,Electronics,31500,32500,0.92,1.3,0.026,8.3,4,0,10,88,10900000,0.51
+V029,Coastal Materials Group,Raw Materials,,50000,0.8,3.8,0.055,6.9,1,2,5,38,3900000,1.1
+V030,Vanguard Steel & Alloys,Raw Materials,50200,50000,0.9,1.6,0.029,8.0,3,0,9,84,10100000,0.57

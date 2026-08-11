@@ -1,0 +1,52 @@
+[client]
+toolbarMode = "minimal"
+
+[theme]
+base = "light"
+
+primaryColor = "#2563EB"
+backgroundColor = "#F6F8FC"
+secondaryBackgroundColor = "#F8FAFC"
+textColor = "#0F172A"
+borderColor = "#E2E8F0"
+
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+headingFont = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+headingFontSizes = ["24px", "18px", "16px", "14px", "13px", "12px"]
+headingFontWeights = [600, 600, 600, 600, 600, 600]
+
+baseRadius = "8px"
+buttonRadius = "8px"
+
+showSidebarBorder = true
+showWidgetBorder = true
+
+dataframeBorderColor = "#E2E8F0"
+dataframeHeaderBackgroundColor = "#F8FAFC"
+
+redColor = "#EF4444"
+redBackgroundColor = "rgba(239, 68, 68, 0.12)"
+redTextColor = "#B91C1C"
+
+orangeColor = "#F59E0B"
+orangeBackgroundColor = "rgba(245, 158, 11, 0.14)"
+orangeTextColor = "#B45309"
+
+greenColor = "#16A34A"
+greenBackgroundColor = "rgba(22, 163, 74, 0.12)"
+greenTextColor = "#15803D"
+
+blueColor = "#2563EB"
+blueBackgroundColor = "rgba(37, 99, 235, 0.10)"
+blueTextColor = "#1D4ED8"
+
+grayColor = "#64748B"
+grayBackgroundColor = "rgba(100, 116, 139, 0.10)"
+grayTextColor = "#475569"
+
+[theme.sidebar]
+backgroundColor = "#071A33"
+secondaryBackgroundColor = "#0E3A73"
+primaryColor = "#123E78"
+textColor = "#CBD5E1"
+borderColor = "rgba(255, 255, 255, 0.08)"
