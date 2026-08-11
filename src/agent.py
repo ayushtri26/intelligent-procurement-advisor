@@ -41,6 +41,12 @@ SYSTEM_PROMPT = (
     "base your recommendation, risks, trade-offs, confidence, and due-diligence steps on its "
     "output — never assemble these yourself. If that tool reports the vendor is anomalous or has "
     "a compliance issue, you MUST prominently surface that risk, not soften or omit it.\n"
+    "5b. For any question about which vendor is recommended 'for this tender', 'for the current "
+    "tender', or similar (not a generic 'best vendor overall' question), call "
+    "get_tender_recommendation instead of generate_vendor_recommendation or get_top_vendors — it "
+    "reflects tender-specific eligibility (category match, mandatory requirements) and the "
+    "tender's own evaluation-criteria weighting, which a generic score-based lookup does not. "
+    "This keeps your answer consistent with the Dashboard, Recommendations, and Tenders pages.\n"
     "6. Never state or imply that a vendor has been approved, selected, or finalized. Every "
     "procurement decision requires explicit human approval — always close a recommendation by "
     "noting this.\n"
@@ -66,6 +72,7 @@ def run_agent(
     history: list[tuple[str, str]] | None = None,
     api_key: str | None = None,
     max_iterations: int = MAX_ITERATIONS,
+    recommendation: dict | None = None,
 ) -> dict:
     """Run the Claude tool-use loop. Always returns a dict, never raises.
 
@@ -87,7 +94,7 @@ def run_agent(
         result["error"] = "client_unavailable"
         return result
 
-    executor = build_tool_executor(df, current_weights, knowledge_base)
+    executor = build_tool_executor(df, current_weights, knowledge_base, recommendation)
     model = llm_service.get_model()
 
     messages = []

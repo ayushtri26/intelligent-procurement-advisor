@@ -168,6 +168,11 @@ TOOL_SCHEMAS = [
             "required": ["vendor"],
         },
     },
+    {
+        "name": "get_tender_recommendation",
+        "description": "Get the centralized, tender-aware recommendation for the currently selected tender: recommended vendor, final score, rank among qualified vendors, eligibility status, confidence, strengths, risks, reasoning, and a per-criterion score breakdown. This is the SAME recommendation shown on the Dashboard, Recommendations, and Tenders pages — always use this (not generate_vendor_recommendation or get_top_vendors) when asked which vendor is recommended for the current/this tender.",
+        "input_schema": {"type": "object", "properties": {}},
+    },
 ]
 
 
@@ -175,7 +180,7 @@ TOOL_SCHEMAS = [
 # Executors
 # --------------------------------------------------------------------------
 
-def build_tool_executor(df: pd.DataFrame, current_weights: dict | None, knowledge_base) -> dict:
+def build_tool_executor(df: pd.DataFrame, current_weights: dict | None, knowledge_base, recommendation: dict | None = None) -> dict:
     """Return {tool_name: callable(args_dict) -> JSON-safe dict} bound to this request's data."""
     weights = current_weights or DEFAULT_WEIGHTS
 
@@ -288,6 +293,11 @@ def build_tool_executor(df: pd.DataFrame, current_weights: dict | None, knowledg
         bundle["found"] = True
         return bundle
 
+    def get_tender_recommendation(args: dict) -> dict:
+        if not recommendation:
+            return {"found": False, "message": "No tender recommendation is available in the current session."}
+        return {k: v for k, v in recommendation.items() if k != "scored_pool_df"} | {"found": True}
+
     raw_executors = {
         "get_top_vendors": get_top_vendors,
         "get_vendor_details": get_vendor_details,
@@ -300,6 +310,7 @@ def build_tool_executor(df: pd.DataFrame, current_weights: dict | None, knowledg
         "run_weight_sensitivity": run_weight_sensitivity,
         "retrieve_procurement_documents": retrieve_procurement_documents,
         "generate_vendor_recommendation": generate_vendor_recommendation,
+        "get_tender_recommendation": get_tender_recommendation,
     }
 
     def _wrap(fn):

@@ -5,7 +5,7 @@ import streamlit as st
 from src import rbac, ui_components
 
 st.title("Roles")
-st.caption("Each role sees only the navigation sections it's permitted to access. Switch roles from the profile menu (top right) to see this live.")
+st.caption("Each role sees only the navigation sections it's permitted to access. Role is assigned automatically at sign-in (src/rbac.py assign_role_from_name) and can't be changed manually.")
 
 matrix = pd.DataFrame(
     {role: {page: ("Yes" if page in rbac.PAGE_PERMISSIONS[role] else "") for page in rbac.ALL_PAGE_KEYS} for role in rbac.ROLES}

@@ -1,8 +1,9 @@
 """AI Assistant — the Claude-powered procurement agent chat, with a rule-based
-fallback. Logic is moved here unchanged from the previous single-page
-version (src/agent.py, src/agent_tools.py, src/procurement_assistant.py are
-untouched by this refactor). This page owns the single st.chat_input in the
-app."""
+fallback. Both paths can answer "who's recommended for this tender" from the
+same centralized src.recommendation_engine object every other page reads
+from: the agent via the get_tender_recommendation tool, the rule-based
+fallback via the `recommendation` kwarg passed into pa.handle(). This page
+owns the single st.chat_input in the app."""
 import json
 
 import streamlit as st
@@ -21,6 +22,7 @@ AGENT_ERROR_MESSAGES = {
 ranked_df = st.session_state.ranked_df
 api_key_present = st.session_state.api_key_present
 current_weights = st.session_state.current_weights
+recommendation = st.session_state.recommendation
 
 
 def _describe_agent_error(error_code):
@@ -117,6 +119,7 @@ if question_to_process:
                 question_to_process, ranked_df, st.session_state.knowledge_base,
                 current_weights=current_weights, history=history_pairs,
                 api_key=get_api_key(), max_iterations=st.session_state.ai_max_iterations_override or agent.MAX_ITERATIONS,
+                recommendation=recommendation,
             )
 
     if agent_result and agent_result["ok"]:
@@ -124,11 +127,12 @@ if question_to_process:
             "role": "assistant", "mode": "agent", "text": agent_result["text"],
             "tool_calls": agent_result["tool_calls"], "sources": agent_result["sources"],
         })
-        recommended_name_for_notif = st.session_state.top_bundle["recommended_vendor"]["vendor_name"]
+        recommended_name_for_notif = recommendation["vendor_name"]
     else:
         response, updated_context = pa.handle(
             question_to_process, ranked_df, context=st.session_state.assistant_context,
             current_weights=current_weights, api_key=None, history=history_pairs,
+            recommendation=recommendation,
         )
         st.session_state.assistant_context = updated_context
         entry = {

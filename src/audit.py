@@ -43,8 +43,8 @@ def log_action(
         st.session_state.audit_log.append(
             {
                 "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "Username": st.session_state.get("current_user_name", "Unknown"),
-                "Role": st.session_state.get("current_role", "Unknown"),
+                "Username": st.session_state.get("user", {}).get("name") or "Unknown",
+                "Role": st.session_state.get("user", {}).get("role") or "Unknown",
                 "Action": action,
                 "Module": module,
                 "Affected Object": affected_object,

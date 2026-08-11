@@ -1,8 +1,12 @@
 """Dashboard — light enterprise landing page: welcome header, KPI row with
 sparklines, recommended-vendor / procurement-overview / risk-distribution
-cards, and a recent-activity + alerts row. Every value is read from
-st.session_state, computed once in app.py by the unchanged scoring/anomaly
-pipeline — this file only recomposes the presentation."""
+cards, a score-breakdown section, and a recent-activity + alerts row.
+
+Every recommendation-related value on this page reads from
+st.session_state.recommendation (src/recommendation_engine.py) — the single
+centralized, tender-aware recommendation object — never computed locally.
+Everything else is read from st.session_state as before, computed once in
+app.py by the unchanged scoring/anomaly pipeline."""
 import streamlit as st
 
 from src import audit, dashboard as db, notifications, reports, rbac, ui_components
@@ -10,6 +14,8 @@ from src import audit, dashboard as db, notifications, reports, rbac, ui_compone
 ranked_df = st.session_state.ranked_df
 kpis = st.session_state.kpis
 top_bundle = st.session_state.top_bundle
+recommendation = st.session_state.recommendation
+pool_df = recommendation["scored_pool_df"]
 bv = kpis["business_value"]
 
 # --------------------------------------------------------------------------
@@ -43,30 +49,32 @@ with header_right:
 st.write("")
 
 # --------------------------------------------------------------------------
-# Row 1 — four KPI cards with sparklines
+# Row 1 — four KPI cards with sparklines, all tender-scoped
 # --------------------------------------------------------------------------
 sparks = db.build_kpi_sparklines(ranked_df, kpis)
-conf_tone = ui_components.confidence_tone(kpis["confidence"])
+confidence_pct = recommendation["confidence"] * 100
+conf_tone = "success" if confidence_pct >= 70 else ("warning" if confidence_pct >= 40 else "danger")
 conf_word = {"success": "High", "warning": "Medium", "danger": "Low"}[conf_tone]
+risk_level, risk_tone = db.compute_risk_level(pool_df)
 
 row1 = st.columns(4)
 with row1[0]:
     with st.container(border=True, height=148):
         ui_components.kpi_card_v2(
-            "Overall Procurement Confidence", f"{kpis['confidence']:.0f}%", f"{conf_word} Confidence",
+            "Overall Procurement Confidence", f"{confidence_pct:.0f}%", f"{conf_word} Confidence",
             icon="trending-up", spark_values=sparks["confidence"], tone=conf_tone, key="spark_confidence",
         )
 with row1[1]:
     with st.container(border=True, height=148):
         ui_components.kpi_card_v2(
-            "Vendors Evaluated", str(kpis["vendors_evaluated"]), f"{kpis['qualified_vendors']} Qualified",
+            "Vendors Evaluated", str(recommendation["evaluated_vendors"]), f"{recommendation['qualified_vendors']} Qualified",
             icon="users", spark_values=sparks["vendors"], tone="info", key="spark_vendors",
         )
 with row1[2]:
     with st.container(border=True, height=148):
         ui_components.kpi_card_v2(
-            "Procurement Risk Level", kpis["risk_level"], f"{kpis['anomalous_count']} Anomalous",
-            icon="shield-alert", spark_values=sparks["risk"], tone=kpis["risk_tone"], key="spark_risk",
+            "Procurement Risk Level", risk_level, f"{recommendation['anomalous_count']} Anomalous",
+            icon="shield-alert", spark_values=sparks["risk"], tone=risk_tone, key="spark_risk",
         )
 with row1[3]:
     with st.container(border=True, height=148):
@@ -78,26 +86,38 @@ with row1[3]:
 st.write("")
 
 # --------------------------------------------------------------------------
-# Row 2 — recommended vendor / procurement overview / risk distribution
+# Row 2 — recommended vendor (tender-specific) / procurement overview / risk distribution
 # --------------------------------------------------------------------------
 row2 = st.columns(3)
-CARD_HEIGHT = 360
+CARD_HEIGHT = 400
 
 with row2[0]:
     with st.container(border=True, height=CARD_HEIGHT):
         head_l, head_r = st.columns([5, 1], vertical_alignment="center")
         with head_l:
-            st.markdown(f"**{top_bundle['recommended_vendor']['vendor_name']}**")
-            st.caption(top_bundle["recommended_vendor"]["vendor_id"])
+            st.caption("Recommended Vendor")
+            st.markdown(f"**{recommendation['vendor_name']}**")
         with head_r:
             st.markdown(
                 f'<div style="text-align:right">{ui_components.icon_svg("award", size=20, color="#F59E0B")}</div>',
                 unsafe_allow_html=True,
             )
-        ui_components.status_badge("Recommended", tone="success")
-        st.write("")
-        st.markdown("**Why recommended?**")
-        ui_components.reason_list(top_bundle["key_reasons"][:4])
+        if recommendation["vendor_id"]:
+            score_col, rank_col = st.columns(2)
+            score_col.metric("Score", f"{recommendation['final_score']:.1f} / 100")
+            rank_col.metric("Rank", f"#{recommendation['rank']} of {recommendation['qualified_vendors']}")
+            ui_components.status_badge(
+                recommendation["eligibility_status"],
+                tone="success" if recommendation["eligibility_status"] == "Qualified" else "warning",
+            )
+            st.caption(recommendation["reasoning"])
+            st.write("")
+            st.markdown("**Why this vendor?**")
+            ui_components.reason_list(recommendation["strengths"][:4], icon="check-circle", color=ui_components.GREEN)
+            if recommendation["risks"]:
+                ui_components.reason_list(recommendation["risks"][:3], icon="alert-triangle", color=ui_components.AMBER)
+        else:
+            st.warning("No eligible vendor found for this tender's category or mandatory requirements.", icon=":material/warning:")
         st.write("")
         if rbac.can_access("recommendations"):
             st.page_link("views/recommendations.py", label="View full analysis", icon=":material/arrow_forward:")
@@ -105,45 +125,70 @@ with row2[0]:
 with row2[1]:
     with st.container(border=True, height=CARD_HEIGHT):
         st.markdown("**Procurement Overview**")
-        st.caption("Vendors by evaluation outcome")
-        overview = db.build_evaluation_overview(ranked_df)
+        st.caption(f"Vendors by evaluation outcome · {recommendation['tender_title']}")
+        overview = db.build_evaluation_overview(pool_df)
         overview_colors = {
             "Recommended for Shortlist": ui_components.GREEN,
             "Acceptable with Conditions": ui_components.BLUE,
             "Not Recommended": ui_components.SLATE,
             "Review Required — Anomaly Detected": ui_components.RED,
         }
-        colors = [overview_colors[k] for k in overview]
-        ui_components.donut_chart(
-            list(overview.keys()), list(overview.values()), colors,
-            str(kpis["vendors_evaluated"]), "Total Vendors", key="donut_overview",
-        )
-        ui_components.chart_legend([{"label": k, "value": v, "color": overview_colors[k]} for k, v in overview.items()])
+        if overview:
+            colors = [overview_colors[k] for k in overview]
+            ui_components.donut_chart(
+                list(overview.keys()), list(overview.values()), colors,
+                str(recommendation["evaluated_vendors"]), "Total Vendors", key="donut_overview",
+            )
+            ui_components.chart_legend([{"label": k, "value": v, "color": overview_colors[k]} for k, v in overview.items()])
+        else:
+            st.caption("No vendors evaluated for this tender yet.")
         if rbac.can_access("vendor_analytics"):
             st.page_link("views/vendor_analytics.py", label="View vendor analytics", icon=":material/arrow_forward:")
 
 with row2[2]:
     with st.container(border=True, height=CARD_HEIGHT):
         st.markdown("**Risk Distribution**")
-        st.caption("Vendors by risk level")
-        dist = db.build_risk_distribution(ranked_df)
+        st.caption(f"Vendors by risk level · {recommendation['tender_title']}")
+        dist = db.build_risk_distribution(pool_df)
         dist_colors = {"Low": ui_components.GREEN, "Medium": ui_components.AMBER, "High": ui_components.RED}
-        colors = [dist_colors[k] for k in dist]
-        ui_components.donut_chart(
-            list(dist.keys()), list(dist.values()), colors,
-            str(kpis["vendors_evaluated"]), "Total Vendors", key="donut_risk",
-        )
-        ui_components.chart_legend([{"label": f"{k} Risk", "value": v, "color": dist_colors[k]} for k, v in dist.items()])
+        if any(dist.values()):
+            colors = [dist_colors[k] for k in dist]
+            ui_components.donut_chart(
+                list(dist.keys()), list(dist.values()), colors,
+                str(recommendation["evaluated_vendors"]), "Total Vendors", key="donut_risk",
+            )
+            ui_components.chart_legend([{"label": f"{k} Risk", "value": v, "color": dist_colors[k]} for k, v in dist.items()])
+        else:
+            st.caption("No vendors evaluated for this tender yet.")
         if rbac.can_access("risk_analytics"):
             st.page_link("views/risk_analytics.py", label="View risk analytics", icon=":material/arrow_forward:")
 
 st.write("")
 
 # --------------------------------------------------------------------------
+# Score Breakdown — tender-specific evaluation criteria applied to the
+# recommended vendor, from the same recommendation object as everything else.
+# --------------------------------------------------------------------------
+breakdown = recommendation.get("score_breakdown") or {}
+if breakdown:
+    with st.container(border=True):
+        st.markdown(f"**Score Breakdown** — {recommendation['vendor_name']}")
+        dim_items = [(label, vals) for label, vals in breakdown.items() if label != "Total"]
+        cols = st.columns(3)
+        for i, (label, vals) in enumerate(dim_items):
+            with cols[i % 3]:
+                fraction = min(vals["points"] / vals["max"], 1.0) if vals["max"] else 0.0
+                st.progress(fraction, text=f"{label}  ·  {vals['points']:.1f} / {vals['max']:.1f}")
+        total = breakdown.get("Total", {"points": 0, "max": 0})
+        st.markdown(f"**Total: {total['points']:.1f} / {total['max']:.1f}**")
+    st.write("")
+
+# --------------------------------------------------------------------------
 # Row 3 — recent activity / alerts & notifications
 # --------------------------------------------------------------------------
 _ACTION_TONE = {
     "Tender Uploaded": "info",
+    "Tender Selected": "info",
     "Tender Stage Advanced": "info",
     "Vendor Viewed": "neutral",
     "Document Uploaded": "info",

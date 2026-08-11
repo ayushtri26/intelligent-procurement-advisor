@@ -10,8 +10,7 @@ def setup_function():
 
 
 def test_log_action_appends_all_required_fields():
-    st.session_state.current_user_name = "Test User"
-    st.session_state.current_role = "Admin"
+    st.session_state.user = {"name": "Test User", "email": "test@example.com", "role": "Administrator"}
     audit.log_action("Vendor Viewed", "Procurement", "V001 — Test Vendor", previous="old", new="new", status="Success")
 
     df = audit.get_audit_df()
@@ -20,7 +19,7 @@ def test_log_action_appends_all_required_fields():
     for col in audit.AUDIT_COLUMNS:
         assert col in df.columns
     assert row["Username"] == "Test User"
-    assert row["Role"] == "Admin"
+    assert row["Role"] == "Administrator"
     assert row["Action"] == "Vendor Viewed"
     assert row["Module"] == "Procurement"
     assert row["Affected Object"] == "V001 — Test Vendor"

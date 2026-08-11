@@ -46,7 +46,7 @@ if choice != "— Select a vendor —":
     # --- Stage 1: Manager Approval ---------------------------------------
     st.subheader("Stage 1 · Manager Approval")
     if not rbac.can_approve_manager_stage():
-        st.caption(f"Requires Procurement Manager or Admin role (current role: {rbac.current_role()}).")
+        st.caption(f"Requires Procurement Manager or Administrator role (current role: {rbac.current_role()}).")
     elif same_vendor:
         rec = st.session_state.manager_approval_record
         st.success(f"Approved by {rec['reviewer']} on {rec['timestamp']}", icon=":material/check_circle:")
@@ -72,7 +72,7 @@ if choice != "— Select a vendor —":
     if not same_vendor:
         st.caption("Awaiting Manager Approval for this vendor.")
     elif not rbac.can_approve_director_stage():
-        st.caption(f"Requires Executive or Admin role (current role: {rbac.current_role()}).")
+        st.caption(f"Requires Executive or Administrator role (current role: {rbac.current_role()}).")
     else:
         director_done = st.session_state.director_approval_record and st.session_state.director_approval_record.get("vendor_id") == choice_id
         if director_done:

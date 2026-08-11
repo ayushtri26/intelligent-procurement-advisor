@@ -291,6 +291,28 @@ def format_recommendation_bundle(bundle: dict, heading: str) -> str:
     return "\n\n".join(lines)
 
 
+def _format_tender_recommendation(recommendation: dict) -> str:
+    """Format the centralized, tender-aware recommendation (src.recommendation_engine)
+    the same way format_recommendation_bundle formats a generic bundle, so the
+    rule-based fallback answer matches every other page for the current tender."""
+    lines = [
+        "### Recommendation",
+        f"**Recommended for {recommendation['tender_title']}: {recommendation['vendor_name']} ({recommendation['vendor_id']})** — "
+        f"final score {recommendation['final_score']}/100, rank #{recommendation['rank']} of {recommendation['qualified_vendors']} "
+        f"qualified vendor(s), confidence **{recommendation['confidence'] * 100:.0f}%**. {recommendation['reasoning']}",
+    ]
+    lines.append("### Evidence")
+    lines.append("**Key reasons:** " + ("; ".join(recommendation["strengths"]) if recommendation["strengths"] else "no single factor stands out — this is the strongest eligible option currently available."))
+    if recommendation["risks"]:
+        lines.append("**Risks noted:** " + "; ".join(recommendation["risks"]))
+    lines.append("### Score Breakdown")
+    breakdown = recommendation.get("score_breakdown") or {}
+    for label, vals in breakdown.items():
+        lines.append(f"- {label}: {vals['points']}/{vals['max']}")
+    lines.append("_This is a recommendation only. Final selection requires explicit human approval — no vendor is approved automatically._")
+    return "\n\n".join(lines)
+
+
 def _format_comparison(comparison_df: pd.DataFrame, evidence: dict) -> str:
     records = [info["record"] for info in evidence.values()]
     headers = ["Vendor", "Overall", "Rank", "Price", "Delivery", "Quality", "Compliance", "Experience", "Financial", "Anomalous"]
@@ -540,6 +562,7 @@ def handle(
     current_weights: dict[str, float] | None = None,
     api_key: str | None = None,
     history: list[tuple[str, str]] | None = None,
+    recommendation: dict | None = None,
 ) -> tuple[AssistantResponse, dict]:
     context = dict(context) if context else new_conversation_context()
     q = question.strip()
@@ -663,10 +686,19 @@ def handle(
         recommended_id, confidence = row["vendor_id"], bundle["confidence"]
 
     elif intent == "best_overall":
-        row = df.sort_values("overall_score", ascending=False).iloc[0]
-        bundle = at.build_recommendation_bundle(df, row, "Highest overall weighted score across all evaluation criteria.")
-        text = format_recommendation_bundle(bundle, "Best overall vendor")
-        recommended_id, confidence = row["vendor_id"], bundle["confidence"]
+        if recommendation and recommendation.get("vendor_id"):
+            # Prefer the centralized, tender-aware recommendation (src.recommendation_engine)
+            # over a generic highest-overall-score lookup, so the answer matches every other
+            # page's recommended vendor for the currently selected tender.
+            text = _format_tender_recommendation(recommendation)
+            recommended_id = recommendation["vendor_id"]
+            confidence = "High" if recommendation["confidence"] >= 0.7 else ("Medium" if recommendation["confidence"] >= 0.4 else "Low")
+            bundle = {k: v for k, v in recommendation.items() if k != "scored_pool_df"}
+        else:
+            row = df.sort_values("overall_score", ascending=False).iloc[0]
+            bundle = at.build_recommendation_bundle(df, row, "Highest overall weighted score across all evaluation criteria.")
+            text = format_recommendation_bundle(bundle, "Best overall vendor")
+            recommended_id, confidence = row["vendor_id"], bundle["confidence"]
 
     elif intent == "top_n":
         n = extract_top_n(q) or 3

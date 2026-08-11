@@ -6,7 +6,7 @@ from src import audit, rbac, ui_components
 
 if "seeded_users" not in st.session_state:
     st.session_state.seeded_users = [
-        {"Name": "Ayush Tripathi", "Role": "Admin", "Email": "ayush@example.com", "Status": "Active"},
+        {"Name": "Ayush Tripathi", "Role": "Administrator", "Email": "ayush@example.com", "Status": "Active"},
         {"Name": "Priya Shah", "Role": "Procurement Manager", "Email": "priya@example.com", "Status": "Active"},
         {"Name": "Alex Kim", "Role": "Executive", "Email": "alex@example.com", "Status": "Active"},
         {"Name": "Jordan Lee", "Role": "Auditor", "Email": "jordan@example.com", "Status": "Active"},

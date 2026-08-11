@@ -17,7 +17,7 @@ src/anomaly_detection.py, src/rag.py, src/agent.py (all untouched).
 import streamlit as st
 from dotenv import load_dotenv
 
-from src import audit, notifications, rbac, search, ui_components, workflow
+from src import audit, notifications, rbac, recommendation_engine, search, tenders_data, ui_components, workflow
 from src.analytics_tools import FEATURE_LABELS, add_recommendation_categories, build_recommendation_bundle
 from src.anomaly_detection import detect_anomalies
 from src.data_processing import coerce_numeric_columns, load_csv, rows_with_missing_mask, validate_vendor_data
@@ -33,6 +33,65 @@ SAMPLE_PATH = "data/sample_vendors.csv"
 st.set_page_config(page_title="Intelligent Procurement Advisor", page_icon=":material/inventory_2:", layout="wide")
 st.logo("assets/logo.svg", icon_image="assets/logo_icon.svg", size="large")
 ui_components.inject_global_css()
+
+
+# --------------------------------------------------------------------------
+# Login gate — Google/OIDC sign-in via Streamlit's native st.login(). Nothing
+# below this block renders until the user is authenticated. When no identity
+# provider is configured yet (local dev without .streamlit/secrets.toml), a
+# clearly-labeled demo-mode fallback keeps the rest of the app testable —
+# see .streamlit/secrets.toml.example for the real Google OAuth setup.
+# --------------------------------------------------------------------------
+def _auth_configured() -> bool:
+    try:
+        return bool(st.secrets.get("auth", {}).get("client_id"))
+    except Exception:
+        return False
+
+
+def _render_login_screen(auth_ready: bool) -> None:
+    st.markdown(
+        """
+        <style>
+        [data-testid="stSidebar"] { display: none; }
+        [data-testid="stMainBlockContainer"] { padding-top: 8vh; }
+        .login-title { font-size: 26px; font-weight: 700; color: #0F172A; margin-top: 16px; text-align: center; }
+        .login-sub { font-size: 14px; color: #64748B; margin-top: 6px; margin-bottom: 28px; text-align: center; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    _, mid, _ = st.columns([1, 1.1, 1])
+    with mid:
+        with st.container(border=True):
+            icon_l, icon_r = st.columns([1, 4])
+            with icon_l:
+                st.image("assets/logo_icon.svg", width=48)
+            st.markdown(
+                '<div class="login-title">Intelligent Procurement Advisor</div>'
+                '<div class="login-sub">Sign in with Google to continue</div>',
+                unsafe_allow_html=True,
+            )
+            if auth_ready:
+                if st.button("Continue with Google", icon=":material/login:", type="primary", use_container_width=True):
+                    st.login()
+            else:
+                st.button("Continue with Google", icon=":material/login:", type="primary", use_container_width=True, disabled=True)
+                st.caption("Google sign-in isn't configured yet — add an `[auth]` block to `.streamlit/secrets.toml` (see `secrets.toml.example`).")
+                with st.expander("Continue in demo mode"):
+                    demo_name = st.text_input("Your name", key="_demo_login_name", placeholder="e.g. Ayush Tripathi")
+                    if st.button("Continue as demo user", use_container_width=True, disabled=not demo_name.strip()):
+                        rbac.set_user(demo_name.strip(), "", is_real_login=False)
+                        st.rerun()
+
+
+_google_ready = _auth_configured()
+if _google_ready and bool(getattr(st.user, "is_logged_in", False)) and "user" not in st.session_state:
+    rbac.set_user(st.user.get("name", "Unknown"), st.user.get("email", ""), is_real_login=True)
+
+if "user" not in st.session_state:
+    _render_login_screen(_google_ready)
+    st.stop()
 
 # --------------------------------------------------------------------------
 # Session-state init — existing keys preserved verbatim so no state/behavior
@@ -69,6 +128,11 @@ for _key, _default in _DEFAULTS.items():
 
 rbac.init_identity()
 workflow.init_workflow()
+
+if "selected_tender_id" not in st.session_state:
+    st.session_state.selected_tender_id = tenders_data.DEFAULT_TENDER_ID
+if "tender_custom_names" not in st.session_state:
+    st.session_state.tender_custom_names = {}
 
 if st.session_state.knowledge_base is None:
     from src import rag
@@ -125,6 +189,24 @@ pg = st.navigation(filtered_pages)
 # --------------------------------------------------------------------------
 with st.sidebar:
     with st.expander("Data & Scoring", icon=":material/tune:", expanded=(st.session_state.raw_df is None)):
+        st.caption("TENDER")
+        _tender_opts = tenders_data.tender_options()
+        _tender_ids = list(_tender_opts.keys())
+        _prev_tender_id = st.session_state.selected_tender_id
+        selected_tender_id = st.selectbox(
+            "Select the tender to evaluate vendors against",
+            _tender_ids, index=_tender_ids.index(_prev_tender_id),
+            format_func=lambda tid: _tender_opts[tid], key="selected_tender_id_input",
+        )
+        if selected_tender_id != _prev_tender_id:
+            st.session_state.selected_tender_id = selected_tender_id
+            audit.log_action(
+                "Tender Selected", "Procurement", tenders_data.get_tender(selected_tender_id)["title"],
+                previous=tenders_data.get_tender(_prev_tender_id)["title"], status="Success",
+            )
+            st.rerun()
+
+        st.divider()
         st.caption("VENDOR DATA SOURCE")
         uploaded = st.file_uploader("Upload vendor CSV", type="csv", label_visibility="collapsed")
         use_sample = st.button("Use sample dataset", use_container_width=True)
@@ -206,8 +288,24 @@ st.session_state.top_vendor_row = top_vendor_row
 st.session_state.kpis = kpis
 st.session_state.top_bundle = top_bundle
 
+# --------------------------------------------------------------------------
+# Tender-aware recommendation — the centralized recommendation object every
+# page reads from (src/recommendation_engine.py). Deliberately NOT cached:
+# recomputed fresh every rerun so switching selected_tender_id can never
+# show a stale recommendation. tender_name derives from the selected
+# tender's title unless the user has renamed it for this session
+# (views/tenders.py), preserving the pre-existing rename feature.
+# --------------------------------------------------------------------------
+selected_tender = tenders_data.get_tender(st.session_state.selected_tender_id)
+st.session_state.selected_tender = selected_tender
+st.session_state.tender_name = (
+    st.session_state.tender_custom_names.get(st.session_state.selected_tender_id) or selected_tender["title"]
+)
+recommendation = recommendation_engine.build_recommendation(ranked_df, st.session_state.selected_tender_id)
+st.session_state.recommendation = recommendation
+
 workflow.mark_data_uploaded(len(ranked_df))
-workflow.mark_ai_analysis_complete(top_vendor_row["vendor_name"])
+workflow.mark_ai_analysis_complete(recommendation["vendor_name"])
 
 if st.session_state.notification_settings.get("High Risk Vendor", True) or st.session_state.notification_settings.get("Score Updated", True):
     notifications.sync_from_ranked_df(ranked_df)
