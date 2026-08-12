@@ -11,8 +11,11 @@ df = audit.get_audit_df()
 if df.empty:
     ui_components.empty_state("No Activity Yet", "Actions will appear here as you use the app.")
 else:
-    limit = st.slider("Show most recent N events", 5, min(200, len(df)), min(50, len(df)))
-    subset = df.head(limit)
+    if len(df) <= 5:
+        subset = df
+    else:
+        limit = st.slider("Show most recent N events", 5, min(200, len(df)), min(50, len(df)))
+        subset = df.head(limit)
     events = [
         {"title": f"{row['Action']} — {row['Affected Object']}", "meta": f"{row['Timestamp']} · {row['Username']} ({row['Role']}) · {row['Module']}"}
         for _, row in subset.iterrows()

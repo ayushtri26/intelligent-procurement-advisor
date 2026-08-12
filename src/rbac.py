@@ -62,6 +62,8 @@ MANAGER_APPROVAL_ROLES = {"Administrator", "Procurement Manager"}
 DIRECTOR_APPROVAL_ROLES = {"Administrator", "Executive"}
 # Roles allowed to edit scoring weights (others see the sliders disabled).
 WEIGHT_EDIT_ROLES = {"Administrator", "Procurement Manager"}
+# Roles allowed to create tenders and edit/duplicate Draft tenders.
+TENDER_MANAGE_ROLES = {"Administrator", "Procurement Manager"}
 
 
 def assign_role_from_name(name: str) -> str:
@@ -133,6 +135,10 @@ def can_approve_director_stage(role: str | None = None) -> bool:
 
 def can_edit_weights(role: str | None = None) -> bool:
     return (role or current_role()) in WEIGHT_EDIT_ROLES
+
+
+def can_manage_tenders(role: str | None = None) -> bool:
+    return (role or current_role()) in TENDER_MANAGE_ROLES
 
 
 def render_identity_control() -> None:

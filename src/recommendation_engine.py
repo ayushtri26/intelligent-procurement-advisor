@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from src.tenders_data import get_tender
+from src.tender_repository import get_tender_or_default as get_tender
 
 DIMENSION_LABELS = {
     "technical_compliance": "Technical Compliance",
@@ -220,6 +220,26 @@ def _score_breakdown(top: pd.Series, tender: dict) -> dict:
     return breakdown
 
 
+def _requirement_match_pct(row: pd.Series, tender: dict) -> float:
+    """Continuous 0-100 'how close is this vendor to meeting the mandatory
+    requirements' score — used only for the closest-matches fallback when
+    no vendor is fully eligible, never for ranking a real recommendation."""
+    cert_component = min(row.get("certifications_count", 0) / max(tender["min_certifications"], 1), 1.0)
+    quality_component = min(row.get("quality_rating", 0) / max(tender["min_quality_rating"], 1), 1.0)
+    violation_component = max(0.0, 1 - (row.get("compliance_violations", 0) or 0) / 2)
+    return round((cert_component + quality_component + violation_component) / 3 * 100, 1)
+
+
+def _closest_matches(pool: pd.DataFrame, tender: dict, top_n: int = 3) -> list[dict]:
+    scored = pool.copy()
+    scored["match_pct"] = scored.apply(lambda r: _requirement_match_pct(r, tender), axis=1)
+    top = scored.sort_values("match_pct", ascending=False).head(top_n)
+    return [
+        {"vendor_id": r["vendor_id"], "vendor_name": r["vendor_name"], "match_pct": r["match_pct"]}
+        for _, r in top.iterrows()
+    ]
+
+
 def _confidence(top: pd.Series, runner_up: pd.Series | None) -> float:
     gap = float(top["final_score"] - runner_up["final_score"]) if runner_up is not None else 40.0
     base = min(max(gap / 25, 0), 1) * 0.6 + 0.3
@@ -234,8 +254,15 @@ def _confidence(top: pd.Series, runner_up: pd.Series | None) -> float:
 # Orchestrator — the one function every page should call
 # --------------------------------------------------------------------------
 
-def _empty_recommendation(tender: dict, evaluated_pool: pd.DataFrame | None = None) -> dict:
+def _empty_recommendation(tender: dict, evaluated_pool: pd.DataFrame | None = None, no_category_match: bool = False) -> dict:
     pool = evaluated_pool if evaluated_pool is not None else pd.DataFrame()
+    closest = [] if pool.empty else _closest_matches(pool, tender)
+    if no_category_match:
+        risk_msg = "No vendor in the current dataset is in this tender's eligible category."
+        reasoning = "No vendors exist in the vendor pool for this tender's category — expand the supplier pool to evaluate this tender."
+    else:
+        risk_msg = "No fully compliant vendors found."
+        reasoning = "No vendor met this tender's mandatory requirements. Consider expanding the supplier pool or modifying non-mandatory requirements."
     return {
         "tender_id": tender["tender_id"],
         "tender_title": tender["title"],
@@ -249,10 +276,11 @@ def _empty_recommendation(tender: dict, evaluated_pool: pd.DataFrame | None = No
         "confidence": 0.0,
         "eligibility_status": "None",
         "strengths": [],
-        "risks": ["No vendor in the current dataset meets this tender's category or mandatory requirements."],
-        "reasoning": "No eligible vendor could be identified for this tender with the current vendor pool.",
+        "risks": [risk_msg],
+        "reasoning": reasoning,
         "score_breakdown": {},
         "ranking": [],
+        "closest_matches": closest,
         "scored_pool_df": pool,
     }
 
@@ -269,7 +297,7 @@ def build_recommendation(ranked_df: pd.DataFrame, tender_id: str) -> dict:
     print(f"[recommendation_engine] Eligible vendors (category match): {len(pool)}")
     if pool.empty:
         print("[recommendation_engine] No vendors match this tender's category — returning empty recommendation.")
-        return _empty_recommendation(tender)
+        return _empty_recommendation(tender, no_category_match=True)
 
     pool = compute_eligibility(pool, tender)
     pool = compute_tender_scores(pool, tender)
@@ -317,5 +345,6 @@ def build_recommendation(ranked_df: pd.DataFrame, tender_id: str) -> dict:
         "reasoning": reasoning,
         "score_breakdown": breakdown,
         "ranking": viable[["tender_rank", "vendor_id", "vendor_name", "final_score", "eligibility_status"]].to_dict("records"),
+        "closest_matches": [],
         "scored_pool_df": pool,
     }

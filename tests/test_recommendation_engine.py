@@ -15,7 +15,8 @@ from src.anomaly_detection import detect_anomalies
 from src.data_processing import coerce_numeric_columns, load_csv, rows_with_missing_mask
 from src.feature_engineering import engineer_features
 from src.recommendation_engine import build_recommendation, compute_eligibility, compute_tender_scores
-from src.tenders_data import TENDERS, get_tender
+from src.tender_repository import get_tender
+from src.tenders_data import SEED_TENDERS as TENDERS
 from src.vendor_scoring import DEFAULT_WEIGHTS, compute_overall_score, rank_vendors
 
 

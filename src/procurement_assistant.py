@@ -305,6 +305,12 @@ def _format_tender_recommendation(recommendation: dict) -> str:
     lines.append("**Key reasons:** " + ("; ".join(recommendation["strengths"]) if recommendation["strengths"] else "no single factor stands out — this is the strongest eligible option currently available."))
     if recommendation["risks"]:
         lines.append("**Risks noted:** " + "; ".join(recommendation["risks"]))
+    if not recommendation.get("vendor_id") and recommendation.get("closest_matches"):
+        lines.append(
+            "**Closest matches:** " + "; ".join(
+                f"{c['vendor_name']} ({c['match_pct']:.0f}% requirement match)" for c in recommendation["closest_matches"]
+            )
+        )
     lines.append("### Score Breakdown")
     breakdown = recommendation.get("score_breakdown") or {}
     for label, vals in breakdown.items():

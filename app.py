@@ -17,7 +17,7 @@ src/anomaly_detection.py, src/rag.py, src/agent.py (all untouched).
 import streamlit as st
 from dotenv import load_dotenv
 
-from src import audit, notifications, rbac, recommendation_engine, search, tenders_data, ui_components, workflow
+from src import audit, notifications, rbac, recommendation_engine, search, tender_context, tender_repository, ui_components, workflow
 from src.analytics_tools import FEATURE_LABELS, add_recommendation_categories, build_recommendation_bundle
 from src.anomaly_detection import detect_anomalies
 from src.data_processing import coerce_numeric_columns, load_csv, rows_with_missing_mask, validate_vendor_data
@@ -129,10 +129,9 @@ for _key, _default in _DEFAULTS.items():
 rbac.init_identity()
 workflow.init_workflow()
 
+tender_repository.init_repository()
 if "selected_tender_id" not in st.session_state:
-    st.session_state.selected_tender_id = tenders_data.DEFAULT_TENDER_ID
-if "tender_custom_names" not in st.session_state:
-    st.session_state.tender_custom_names = {}
+    st.session_state.selected_tender_id = tender_repository.DEFAULT_TENDER_ID
 
 if st.session_state.knowledge_base is None:
     from src import rag
@@ -184,29 +183,14 @@ filtered_pages = rbac.filter_pages(PAGES_BY_SECTION, rbac.current_role())
 pg = st.navigation(filtered_pages)
 
 # --------------------------------------------------------------------------
-# Sidebar — data source + scoring configuration, collapsed by default once
-# a tender is loaded so the nav stays the visually dominant sidebar content.
+# Sidebar — global tender workspace (pushed above the nav menu by the
+# flex-order CSS rule in ui_components.GLOBAL_CSS), then data source +
+# scoring configuration, collapsed by default once a tender is loaded.
 # --------------------------------------------------------------------------
 with st.sidebar:
-    with st.expander("Data & Scoring", icon=":material/tune:", expanded=(st.session_state.raw_df is None)):
-        st.caption("TENDER")
-        _tender_opts = tenders_data.tender_options()
-        _tender_ids = list(_tender_opts.keys())
-        _prev_tender_id = st.session_state.selected_tender_id
-        selected_tender_id = st.selectbox(
-            "Select the tender to evaluate vendors against",
-            _tender_ids, index=_tender_ids.index(_prev_tender_id),
-            format_func=lambda tid: _tender_opts[tid], key="selected_tender_id_input",
-        )
-        if selected_tender_id != _prev_tender_id:
-            st.session_state.selected_tender_id = selected_tender_id
-            audit.log_action(
-                "Tender Selected", "Procurement", tenders_data.get_tender(selected_tender_id)["title"],
-                previous=tenders_data.get_tender(_prev_tender_id)["title"], status="Success",
-            )
-            st.rerun()
+    tender_context.render_tender_workspace()
 
-        st.divider()
+    with st.expander("Data & Scoring", icon=":material/tune:", expanded=(st.session_state.raw_df is None)):
         st.caption("VENDOR DATA SOURCE")
         uploaded = st.file_uploader("Upload vendor CSV", type="csv", label_visibility="collapsed")
         use_sample = st.button("Use sample dataset", use_container_width=True)
@@ -291,16 +275,12 @@ st.session_state.top_bundle = top_bundle
 # --------------------------------------------------------------------------
 # Tender-aware recommendation — the centralized recommendation object every
 # page reads from (src/recommendation_engine.py). Deliberately NOT cached:
-# recomputed fresh every rerun so switching selected_tender_id can never
-# show a stale recommendation. tender_name derives from the selected
-# tender's title unless the user has renamed it for this session
-# (views/tenders.py), preserving the pre-existing rename feature.
+# recomputed fresh every rerun so switching, creating, or editing a tender
+# (src/tender_repository.py) can never show a stale recommendation.
 # --------------------------------------------------------------------------
-selected_tender = tenders_data.get_tender(st.session_state.selected_tender_id)
+selected_tender = tender_repository.get_tender_or_default(st.session_state.selected_tender_id)
 st.session_state.selected_tender = selected_tender
-st.session_state.tender_name = (
-    st.session_state.tender_custom_names.get(st.session_state.selected_tender_id) or selected_tender["title"]
-)
+st.session_state.tender_name = selected_tender["title"]
 recommendation = recommendation_engine.build_recommendation(ranked_df, st.session_state.selected_tender_id)
 st.session_state.recommendation = recommendation
 

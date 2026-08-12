@@ -96,6 +96,19 @@ GLOBAL_CSS = f"""
 .block-container {{ padding-top: 1.1rem; padding-bottom: 2.5rem; max-width: 1600px; }}
 h1, h2, h3 {{ letter-spacing: -0.01em; color: {TEXT_PRIMARY}; }}
 
+/* Sidebar content added via `with st.sidebar:` always renders below the
+   native nav menu (stSidebarNav) in the DOM, regardless of code order —
+   Streamlit gives st.navigation() a fixed slot. The Tender Workspace block
+   needs to sit ABOVE the nav (below the logo), so we flex-reorder the three
+   direct children of the sidebar using their stable, documented testids
+   rather than any generated/hashed class name. stSidebarHeader (logo) keeps
+   its default order (first); all custom `st.sidebar` content is pushed
+   above stSidebarNav as one group — Tender Workspace renders first within
+   that group purely by call order in app.py.  */
+[data-testid="stSidebarContent"] {{ display: flex; flex-direction: column; }}
+[data-testid="stSidebarUserContent"] {{ order: 1; }}
+[data-testid="stSidebarNav"] {{ order: 2; }}
+
 /* Card shadow/border applied to every bordered st.container() */
 [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]) {{ }}
 div[data-testid="stVerticalBlockBorderWrapper"] > div {{ border-radius: 10px; }}

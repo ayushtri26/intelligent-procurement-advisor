@@ -56,7 +56,13 @@ if recommendation["vendor_id"]:
         with st.expander(f"Full tender ranking ({len(recommendation['ranking'])} vendor(s))"):
             ui_components.data_table(recommendation["ranking"])
 else:
-    st.warning("No eligible vendor found for this tender's category or mandatory requirements.", icon=":material/warning:")
+    st.warning(recommendation["risks"][0] if recommendation["risks"] else "No eligible vendor found.", icon=":material/warning:")
+    closest = recommendation.get("closest_matches") or []
+    if closest:
+        st.markdown("**Closest Matches**")
+        for c in closest:
+            st.markdown(f"- {c['vendor_name']} — {c['match_pct']:.0f}% requirement match")
+        st.caption("Consider expanding the supplier pool or modifying non-mandatory requirements.")
 
 st.divider()
 

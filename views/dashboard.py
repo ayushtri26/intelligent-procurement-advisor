@@ -117,7 +117,13 @@ with row2[0]:
             if recommendation["risks"]:
                 ui_components.reason_list(recommendation["risks"][:3], icon="alert-triangle", color=ui_components.AMBER)
         else:
-            st.warning("No eligible vendor found for this tender's category or mandatory requirements.", icon=":material/warning:")
+            st.warning(recommendation["risks"][0] if recommendation["risks"] else "No eligible vendor found.", icon=":material/warning:")
+            closest = recommendation.get("closest_matches") or []
+            if closest:
+                st.markdown("**Closest Matches**")
+                for c in closest:
+                    st.markdown(f"- {c['vendor_name']} — {c['match_pct']:.0f}% requirement match")
+                st.caption("Consider expanding the supplier pool or modifying non-mandatory requirements.")
         st.write("")
         if rbac.can_access("recommendations"):
             st.page_link("views/recommendations.py", label="View full analysis", icon=":material/arrow_forward:")
