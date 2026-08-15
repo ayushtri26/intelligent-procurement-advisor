@@ -11,6 +11,8 @@ where an icon needs to sit inside a custom-styled div instead).
 """
 from __future__ import annotations
 
+import base64
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -67,7 +69,31 @@ _ICONS = {
     "lightbulb": '<path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M12 2a6 6 0 0 0-4 10.5c.6.6 1 1.5 1 2.5h6c0-1 .4-1.9 1-2.5A6 6 0 0 0 12 2z"></path>',
     "circle-dot": '<circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"></circle>',
     "user": '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
+    "lock": '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>',
+    "arrow-left": '<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>',
 }
+
+# Official multi-color Google "G" mark — the one icon in this file that isn't
+# a single-stroke line icon, since Google's own brand guidelines require the
+# real four-color mark (not a monochrome substitute) on "Continue with
+# Google" buttons.
+_GOOGLE_G_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">'
+    '<path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>'
+    '<path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>'
+    '<path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>'
+    '<path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>'
+    "</svg>"
+)
+
+
+def google_icon_data_uri() -> str:
+    """Base64 data URI for the Google "G" mark, for use as a CSS background-image
+    (Streamlit's native st.button icon= param only accepts emoji/Material icons,
+    not custom SVG, so the real button stays a functional st.button and this
+    is injected via CSS rather than replacing it with a fake clickable div)."""
+    encoded = base64.b64encode(_GOOGLE_G_SVG.encode("utf-8")).decode("ascii")
+    return f"data:image/svg+xml;base64,{encoded}"
 
 
 def icon_svg(name: str, size: int = 16, color: str = "currentColor", stroke_width: float = 1.75) -> str:
@@ -171,6 +197,107 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {{ border-radius: 10px; }}
 .welcome-sub {{ font-size: 13px; color: {TEXT_SECONDARY}; margin-top: 2px; }}
 
 .section-link {{ font-size: 12px; color: #2563EB; font-weight: 500; text-decoration:none; }}
+
+/* ---------------------------------------------------------------------
+   Sidebar — text branding, compact Tender Workspace card, compact nav,
+   and a bottom-pinned profile footer. Colors are alpha-blended against
+   the existing dark-navy [theme.sidebar] background (.streamlit/config.toml)
+   rather than hardcoded, so this stays correct if that palette ever shifts.
+   --------------------------------------------------------------------- */
+[data-testid="stSidebar"] {{ position: relative; width: 268px !important; }}
+[data-testid="stSidebarContent"] {{ height: 100vh; overflow: hidden; }}
+[data-testid="stSidebarUserContent"] {{ flex: 0 0 auto; padding-bottom: 0; }}
+[data-testid="stSidebarNav"] {{ flex: 1 1 auto; overflow-y: auto; min-height: 0; padding-bottom: 68px; }}
+
+/* Native collapse button — moved out of its own reserved header row and
+   onto the same line as the brand title, right-aligned. stSidebarHeader
+   sits outside stSidebarContent's flex flow, so pulling it out via
+   absolute positioning lets stSidebarContent's own content start right
+   at the top with no leftover blank header space. */
+[data-testid="stSidebarHeader"] {{ position: absolute; top: 10px; right: 8px; left: auto; width: auto; height: auto; z-index: 10; background: transparent; }}
+
+/* Shared left edge for every custom sidebar block AND the native nav —
+   this is the single source of truth for the sidebar's alignment grid.
+   Note: stSidebarUserContent renders ALL custom `st.sidebar` content as
+   ONE combined wrapper div (not one per widget), so this padding applies
+   uniformly to the whole block — per-row overrides must live on the
+   inner element itself, never on a `> div` ancestor selector. */
+:root {{ --sb-gutter: 20px; }}
+[data-testid="stSidebarUserContent"] > div {{ padding-left: var(--sb-gutter); padding-right: var(--sb-gutter); }}
+[data-testid="stSidebarNavLink"] {{ margin-left: 8px; margin-right: 8px; padding-left: calc(var(--sb-gutter) - 8px) !important; }}
+[data-testid="stSidebarNav"] [data-testid="stNavSectionHeader"] {{ padding-left: var(--sb-gutter); padding-right: 8px; }}
+
+.sb-brand {{ margin: 6px 0 10px 0; }}
+.sb-brand-title {{ font-size: 18px; font-weight: 600; color: #F8FAFC; line-height: 1.28; letter-spacing: -0.015em; }}
+
+.sb-section-label {{ font-size: 10.5px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(203,213,225,0.5); margin-bottom: 8px; }}
+.sb-field-label {{ font-size: 11px; color: rgba(203,213,225,0.55); margin: 4px 0 7px 0; }}
+
+.sb-status-pill {{ display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 999px; font-size: 11px; font-weight: 500; margin-top: 8px; }}
+.sb-status-dot {{ width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }}
+
+.sb-api-status {{ display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: rgba(203,213,225,0.55); padding: 4px 2px; margin-top: 2px; }}
+.sb-api-status-right {{ display: flex; align-items: center; gap: 6px; }}
+
+/* Data & Scoring — a plain utility row, the same height/hover treatment
+   as a nav item, no border or card of its own. */
+[data-testid="stSidebar"] [data-testid="stExpander"],
+[data-testid="stSidebar"] [data-testid="stExpander"] details {{ border: none !important; background: transparent !important; box-shadow: none !important; }}
+[data-testid="stSidebar"] [data-testid="stExpander"] > div {{ background: transparent !important; }}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary {{
+    padding: 8px 4px; min-height: 36px; border-radius: 8px; display: flex; align-items: center; background: transparent !important;
+}}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary:hover {{ background-color: rgba(255,255,255,0.06) !important; }}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary p {{ font-size: 12.5px !important; color: rgba(203,213,225,0.75) !important; }}
+[data-testid="stSidebar"] [data-testid="stExpanderDetails"] {{ padding-top: 4px; background: transparent !important; }}
+
+[data-testid="stSidebar"] [data-testid="stBaseButton-primary"],
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] {{ min-height: 38px; border-radius: 8px; font-weight: 500; }}
+[data-testid="stSidebar"] [data-testid="stSelectbox"] div[data-baseweb="select"] > div {{ min-height: 40px; border-radius: 8px; }}
+[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] span {{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+
+/* Create New Tender — a subtle secondary action, not a dominant CTA; it
+   now follows the dropdown/status instead of leading, since switching
+   tenders happens far more often than creating one. */
+.st-key-tw_create_btn button {{
+    background: transparent !important;
+    border: 1px solid rgba(96,165,250,0.35) !important;
+    color: #93C5FD !important;
+    font-size: 13px !important;
+    white-space: nowrap !important;
+}}
+.st-key-tw_create_btn button:hover {{
+    background: rgba(96,165,250,0.08) !important;
+    border-color: rgba(96,165,250,0.55) !important;
+    color: #BFDBFE !important;
+}}
+
+[data-testid="stSidebarNav"] [data-testid="stNavSectionHeader"] {{ margin-top: 20px; }}
+[data-testid="stSidebarNav"] [data-testid="stNavSectionHeader"]:first-child {{ margin-top: 16px; }}
+[data-testid="stSidebarNav"] [data-testid="stNavSectionHeader"] p {{ font-size: 10.5px !important; font-weight: 500 !important; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(203,213,225,0.5) !important; }}
+
+[data-testid="stSidebarNavLink"] {{ border-radius: 8px; min-height: 36px; margin-top: 1px; margin-bottom: 1px; transition: background-color 0.12s ease; }}
+[data-testid="stSidebarNavLink"]:hover {{ background-color: rgba(255,255,255,0.055) !important; }}
+[data-testid="stSidebarNavLink"][aria-current="page"] {{ background-color: rgba(37,99,235,0.10) !important; box-shadow: inset 2px 0 0 0 #3B82F6; }}
+[data-testid="stSidebarNavLink"][aria-current="page"] p {{ color: #F8FAFC !important; font-weight: 600 !important; }}
+[data-testid="stSidebarNavLink"][aria-current="page"] [data-testid="stIconMaterial"] {{ color: #F8FAFC !important; }}
+
+[data-testid="stSidebarCollapseButton"] button {{ border: none !important; background: transparent !important; color: rgba(203,213,225,0.55) !important; }}
+[data-testid="stSidebarCollapseButton"] button:hover {{ background-color: rgba(255,255,255,0.08) !important; color: #F1F5F9 !important; }}
+
+.st-key-sidebar_profile_footer {{ position: absolute; left: 0; right: 0; bottom: 0; background: #071A33; border-top: 1px solid rgba(255,255,255,0.08); padding: 10px var(--sb-gutter) 12px var(--sb-gutter); z-index: 5; }}
+.sb-profile-row {{ display: flex; align-items: center; gap: 10px; }}
+.sb-profile-avatar {{ width: 32px; height: 32px; border-radius: 50%; background: rgba(37,99,235,0.25); color: #93C5FD; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }}
+.sb-profile-name {{ font-size: 12.5px; font-weight: 600; color: #F1F5F9; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.sb-profile-role {{ font-size: 11px; color: rgba(203,213,225,0.6); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+
+/* The sidebar profile popover portals outside [data-testid="stSidebar"], so
+   its plain text (unlike buttons/badges) falls back to the light-theme's
+   dark text color and becomes unreadable against the dark popover surface.
+   st.container(key="sidebar_profile_popover") gives it a stable, globally
+   scoped hook to force readable colors regardless of where it portals to. */
+.st-key-sidebar_profile_popover p, .st-key-sidebar_profile_popover strong {{ color: #E2E8F0 !important; }}
+.st-key-sidebar_profile_popover [data-testid="stCaptionContainer"] p {{ color: rgba(226,232,240,0.62) !important; }}
 </style>
 """
 
@@ -444,3 +571,36 @@ def empty_state(title: str, caption: str) -> None:
     with st.container(border=True):
         st.markdown(f"##### {title}")
         st.caption(caption)
+
+
+# ---------------------------------------------------------------------------
+# Sidebar chrome — text branding, section labels, and compact status rows.
+# ---------------------------------------------------------------------------
+
+def render_sidebar_branding() -> None:
+    """Left-aligned text-only wordmark rendered as the first sidebar element,
+    replacing the old st.logo() image lockup. No subtitle, no icon — the
+    native collapse button (repositioned via CSS) shares this same row."""
+    st.markdown('<div class="sb-brand"><div class="sb-brand-title">Intelligent Procurement Advisor</div></div>', unsafe_allow_html=True)
+
+
+def sidebar_status_pill(label: str, tone: str = "neutral") -> None:
+    """Compact dot + pill status indicator for the sidebar (dark background),
+    distinct from status_badge() which targets the light main-content shell."""
+    color = _LINE_BY_TONE.get(tone, SLATE)
+    st.markdown(
+        f'<div class="sb-status-pill" style="background:{_hex_to_rgba(color, 0.16)};color:{color};">'
+        f'<span class="sb-status-dot" style="background:{color}"></span>{label}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def sidebar_status_row(label: str, connected: bool, connected_label: str = "Connected", disconnected_label: str = "Fallback mode") -> None:
+    """Compact single-line system status row (e.g. 'Claude API  ● Connected')."""
+    color = GREEN if connected else SLATE
+    text = connected_label if connected else disconnected_label
+    st.markdown(
+        f'<div class="sb-api-status"><span>{label}</span>'
+        f'<span class="sb-api-status-right"><span class="sb-status-dot" style="background:{color}"></span>{text}</span></div>',
+        unsafe_allow_html=True,
+    )

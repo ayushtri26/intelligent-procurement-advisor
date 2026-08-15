@@ -141,6 +141,17 @@ def can_manage_tenders(role: str | None = None) -> bool:
     return (role or current_role()) in TENDER_MANAGE_ROLES
 
 
+def _do_logout(user: dict) -> None:
+    """Shared logout action used by every identity control in the app."""
+    audit.log_action("User Logout", "Administration", user["name"], status="Success")
+    if hasattr(st, "logout") and st.session_state.get("_real_login"):
+        st.logout()
+    else:
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.rerun()
+
+
 def render_identity_control() -> None:
     """Top-bar 'Signed in as' control — read-only identity (role is assigned
     automatically at login, not user-selectable) plus Logout."""
@@ -156,14 +167,40 @@ def render_identity_control() -> None:
         st.badge(user["role"], color="blue")
         st.caption("Role is assigned automatically from your account and can't be changed here.")
         st.divider()
-        if st.button("Log out", icon=":material/logout:", use_container_width=True):
-            audit.log_action("User Logout", "Administration", user["name"], status="Success")
-            if hasattr(st, "logout") and st.session_state.get("_real_login"):
-                st.logout()
-            else:
-                for key in list(st.session_state.keys()):
-                    del st.session_state[key]
-                st.rerun()
+        if st.button("Log out", icon=":material/logout:", use_container_width=True, key="topbar_logout_btn"):
+            _do_logout(user)
+
+
+def render_sidebar_profile() -> None:
+    """Compact identity block pinned to the bottom of the sidebar (via the
+    .st-key-sidebar_profile_footer CSS hook in ui_components.GLOBAL_CSS),
+    reusing the same identity/logout logic as the top-bar control."""
+    init_identity()
+    user = st.session_state.user
+    if not user.get("name"):
+        return
+
+    with st.container(key="sidebar_profile_footer"):
+        row_l, row_r = st.columns([5, 1], vertical_alignment="center")
+        with row_l:
+            st.markdown(
+                f'<div class="sb-profile-row">'
+                f'<div class="sb-profile-avatar">{current_user_initials()}</div>'
+                f'<div><div class="sb-profile-name">{user["name"]}</div>'
+                f'<div class="sb-profile-role">{user["role"]}</div></div></div>',
+                unsafe_allow_html=True,
+            )
+        with row_r:
+            with st.popover("", icon=":material/expand_more:", use_container_width=True):
+                with st.container(key="sidebar_profile_popover"):
+                    st.caption("Signed in as")
+                    st.markdown(f"**{user['name']}**")
+                    if user.get("email"):
+                        st.caption(user["email"])
+                    st.badge(user["role"], color="blue")
+                    st.divider()
+                    if st.button("Log out", icon=":material/logout:", use_container_width=True, key="sidebar_logout_btn"):
+                        _do_logout(user)
 
 
 def filter_pages(pages_by_section: dict[str, list], role: str | None = None) -> dict[str, list]:

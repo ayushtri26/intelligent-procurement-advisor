@@ -14,6 +14,8 @@ No scoring, anomaly-detection, RAG, or agent logic lives in this file or was
 changed anywhere in this refactor — see src/vendor_scoring.py,
 src/anomaly_detection.py, src/rag.py, src/agent.py (all untouched).
 """
+from pathlib import Path
+
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -31,7 +33,6 @@ load_dotenv()
 SAMPLE_PATH = "data/sample_vendors.csv"
 
 st.set_page_config(page_title="Intelligent Procurement Advisor", page_icon=":material/inventory_2:", layout="wide")
-st.logo("assets/logo.svg", icon_image="assets/logo_icon.svg", size="large")
 ui_components.inject_global_css()
 
 
@@ -41,6 +42,14 @@ ui_components.inject_global_css()
 # provider is configured yet (local dev without .streamlit/secrets.toml), a
 # clearly-labeled demo-mode fallback keeps the rest of the app testable —
 # see .streamlit/secrets.toml.example for the real Google OAuth setup.
+#
+# There is no password-based auth anywhere in this app — real identity comes
+# exclusively from Google OIDC (or the local demo-mode fallback below), and
+# role is derived automatically from the signed-in name (src/rbac.py). The
+# separate "Admin Portal" screen is therefore a distinct, distinctly-styled
+# entry point rather than a second credential system: it triggers the exact
+# same st.login()/demo-mode path, just presented as its own secure-looking
+# surface per the design brief, with no fabricated password check.
 # --------------------------------------------------------------------------
 def _auth_configured() -> bool:
     try:
@@ -49,40 +58,160 @@ def _auth_configured() -> bool:
         return False
 
 
-def _render_login_screen(auth_ready: bool) -> None:
+def _auth_shell_css() -> None:
+    google_icon = ui_components.google_icon_data_uri()
     st.markdown(
-        """
+        f"""
         <style>
-        [data-testid="stSidebar"] { display: none; }
-        [data-testid="stMainBlockContainer"] { padding-top: 8vh; }
-        .login-title { font-size: 26px; font-weight: 700; color: #0F172A; margin-top: 16px; text-align: center; }
-        .login-sub { font-size: 14px; color: #64748B; margin-top: 6px; margin-bottom: 28px; text-align: center; }
+        [data-testid="stSidebar"] {{ display: none; }}
+        [data-testid="stHeader"] {{ background: transparent; }}
+        [data-testid="stMainBlockContainer"] {{ padding-top: 5vh; padding-bottom: 5vh; }}
+        [data-testid="stAppViewContainer"] {{ background: #F3F5F9; }}
+
+        .auth-badge {{
+            width: 52px; height: 52px; border-radius: 14px;
+            background: linear-gradient(155deg, #2563EB, #1D4ED8);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 18px auto; box-shadow: 0 6px 16px rgba(37,99,235,0.28);
+        }}
+        .auth-badge.admin {{ background: linear-gradient(155deg, #1E293B, #0B1526); box-shadow: 0 6px 16px rgba(15,23,42,0.35); }}
+        .auth-badge svg {{ width: 26px; height: 26px; }}
+
+        .auth-title {{ font-size: 22px; font-weight: 700; color: #0F172A; text-align: center; line-height: 1.3; }}
+        .auth-subtitle {{ font-size: 13.5px; color: #64748B; text-align: center; margin-top: 6px; margin-bottom: 26px; line-height: 1.5; }}
+
+        .auth-divider-row {{ display: flex; align-items: center; gap: 12px; margin: 18px 0; }}
+        .auth-divider-line {{ flex: 1; height: 1px; background: #E2E8F0; }}
+        .auth-divider-text {{ font-size: 11.5px; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }}
+
+        .auth-secondary-text {{ text-align: center; font-size: 13px; color: #94A3B8; margin-top: 2px; }}
+        .auth-security-note {{ text-align: center; font-size: 11.5px; color: #94A3B8; margin-top: 18px; line-height: 1.5; }}
+
+        .st-key-login_card, .st-key-admin_card {{
+            border: 1px solid #E5E9F0 !important; border-radius: 16px !important;
+            box-shadow: 0 1px 2px rgba(15,23,42,0.03), 0 20px 40px -18px rgba(15,23,42,0.14) !important;
+            padding: 36px 34px 28px 34px !important; background: #FFFFFF !important;
+        }}
+        .st-key-admin_card {{ border-color: #1E293B !important; }}
+
+        .st-key-login_card [data-testid="stBaseButton-primary"],
+        .st-key-admin_card [data-testid="stBaseButton-primary"],
+        .st-key-login_card [data-testid="stBaseButton-secondary"],
+        .st-key-admin_card [data-testid="stBaseButton-secondary"] {{
+            min-height: 46px !important; border-radius: 10px !important; font-weight: 600 !important; font-size: 14.5px !important;
+        }}
+        .st-key-admin_card [data-testid="stBaseButton-primary"] {{ background-color: #0F172A !important; border-color: #0F172A !important; }}
+        .st-key-admin_card [data-testid="stBaseButton-primary"]:hover {{ background-color: #1E293B !important; }}
+
+        .st-key-google_btn button {{ position: relative; padding-left: 38px !important; }}
+        .st-key-google_btn button p {{ padding-left: 4px; }}
+        .st-key-google_btn button::before {{
+            content: ""; position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            width: 18px; height: 18px;
+            background-image: url("{google_icon}"); background-size: contain; background-repeat: no-repeat;
+        }}
+
+        .st-key-admin_link_btn button, .st-key-back_to_login_btn button {{
+            background: transparent !important; border: none !important; color: #475569 !important;
+            font-weight: 600 !important; min-height: 34px !important; box-shadow: none !important;
+        }}
+        .st-key-admin_link_btn button:hover, .st-key-back_to_login_btn button:hover {{ color: #1D4ED8 !important; text-decoration: underline; }}
+
+        @media (max-width: 640px) {{
+            .st-key-login_card, .st-key-admin_card {{ padding: 26px 18px 22px 18px !important; }}
+        }}
         </style>
         """,
         unsafe_allow_html=True,
     )
-    _, mid, _ = st.columns([1, 1.1, 1])
+
+
+def _auth_badge(admin: bool = False) -> None:
+    icon_svg = Path("assets/logo_icon.svg").read_text(encoding="utf-8")
+    cls = "auth-badge admin" if admin else "auth-badge"
+    st.markdown(f'<div class="{cls}">{icon_svg}</div>', unsafe_allow_html=True)
+
+
+def _demo_mode_block(key_prefix: str) -> None:
+    """Shared local-dev fallback (no real backend involved) — identical
+    behavior on both screens, just re-keyed so the widgets don't collide."""
+    with st.expander("Continue in demo mode"):
+        demo_name = st.text_input("Your name", key=f"{key_prefix}_demo_login_name", placeholder="e.g. Ayush Tripathi")
+        if st.button("Continue as demo user", key=f"{key_prefix}_demo_login_btn", use_container_width=True, disabled=not demo_name.strip()):
+            rbac.set_user(demo_name.strip(), "", is_real_login=False)
+            st.rerun()
+
+
+def _render_login_screen(auth_ready: bool) -> None:
+    _auth_shell_css()
+    _, mid, _ = st.columns([1, 1.15, 1])
     with mid:
-        with st.container(border=True):
-            icon_l, icon_r = st.columns([1, 4])
-            with icon_l:
-                st.image("assets/logo_icon.svg", width=48)
+        with st.container(key="login_card", border=True):
+            _auth_badge()
             st.markdown(
-                '<div class="login-title">Intelligent Procurement Advisor</div>'
-                '<div class="login-sub">Sign in with Google to continue</div>',
+                '<div class="auth-title">Welcome back</div>'
+                '<div class="auth-subtitle">Sign in to access your procurement intelligence workspace.</div>',
                 unsafe_allow_html=True,
             )
+
             if auth_ready:
-                if st.button("Continue with Google", icon=":material/login:", type="primary", use_container_width=True):
+                with st.container(key="google_btn"):
+                    if st.button("Continue with Google", type="primary", use_container_width=True):
+                        st.login()
+            else:
+                with st.container(key="google_btn"):
+                    st.button("Continue with Google", type="primary", use_container_width=True, disabled=True)
+                st.caption("Google sign-in isn't configured yet — add an `[auth]` block to `.streamlit/secrets.toml` (see `secrets.toml.example`).")
+                _demo_mode_block("login")
+
+            st.markdown(
+                '<div class="auth-divider-row"><div class="auth-divider-line"></div>'
+                '<div class="auth-divider-text">or</div><div class="auth-divider-line"></div></div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown('<div class="auth-secondary-text">New to the platform? Request access</div>', unsafe_allow_html=True)
+
+            st.markdown(
+                '<div class="auth-divider-row" style="margin-top:24px;"><div class="auth-divider-line"></div></div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown('<div class="auth-secondary-text" style="margin-bottom:10px;">Administrator?</div>', unsafe_allow_html=True)
+            with st.container(key="admin_link_btn"):
+                if st.button("Access Admin Portal →", icon=":material/lock:", use_container_width=True, key="_go_admin_portal"):
+                    st.session_state._show_admin_portal = True
+                    st.rerun()
+
+
+def _render_admin_portal_screen(auth_ready: bool) -> None:
+    _auth_shell_css()
+    _, mid, _ = st.columns([1, 1.15, 1])
+    with mid:
+        with st.container(key="admin_card", border=True):
+            _auth_badge(admin=True)
+            st.markdown(
+                '<div class="auth-title">Admin Portal</div>'
+                '<div class="auth-subtitle">Restricted access for authorized system administrators.</div>',
+                unsafe_allow_html=True,
+            )
+
+            if auth_ready:
+                if st.button("Continue Securely", type="primary", use_container_width=True, key="_admin_continue_btn"):
                     st.login()
             else:
-                st.button("Continue with Google", icon=":material/login:", type="primary", use_container_width=True, disabled=True)
+                st.button("Continue Securely", type="primary", use_container_width=True, disabled=True, key="_admin_continue_btn")
                 st.caption("Google sign-in isn't configured yet — add an `[auth]` block to `.streamlit/secrets.toml` (see `secrets.toml.example`).")
-                with st.expander("Continue in demo mode"):
-                    demo_name = st.text_input("Your name", key="_demo_login_name", placeholder="e.g. Ayush Tripathi")
-                    if st.button("Continue as demo user", use_container_width=True, disabled=not demo_name.strip()):
-                        rbac.set_user(demo_name.strip(), "", is_real_login=False)
-                        st.rerun()
+                _demo_mode_block("admin")
+
+            with st.container(key="back_to_login_btn"):
+                if st.button("← Back to User Sign In", use_container_width=True, key="_back_to_login"):
+                    st.session_state._show_admin_portal = False
+                    st.rerun()
+
+            st.markdown(
+                '<div class="auth-security-note">Protected administrative environment. Administrative '
+                "activity may be logged for security and audit purposes.</div>",
+                unsafe_allow_html=True,
+            )
 
 
 _google_ready = _auth_configured()
@@ -90,7 +219,10 @@ if _google_ready and bool(getattr(st.user, "is_logged_in", False)) and "user" no
     rbac.set_user(st.user.get("name", "Unknown"), st.user.get("email", ""), is_real_login=True)
 
 if "user" not in st.session_state:
-    _render_login_screen(_google_ready)
+    if st.session_state.get("_show_admin_portal"):
+        _render_admin_portal_screen(_google_ready)
+    else:
+        _render_login_screen(_google_ready)
     st.stop()
 
 # --------------------------------------------------------------------------
@@ -184,13 +316,15 @@ pg = st.navigation(filtered_pages)
 
 # --------------------------------------------------------------------------
 # Sidebar — global tender workspace (pushed above the nav menu by the
-# flex-order CSS rule in ui_components.GLOBAL_CSS), then data source +
-# scoring configuration, collapsed by default once a tender is loaded.
+# flex-order CSS rule in ui_components.GLOBAL_CSS), then Data (vendor data
+# source + Scoring Configuration — the vendor-scoring-weights control — kept
+# open by default so it stays discoverable rather than collapsing away).
 # --------------------------------------------------------------------------
 with st.sidebar:
+    ui_components.render_sidebar_branding()
     tender_context.render_tender_workspace()
 
-    with st.expander("Data & Scoring", icon=":material/tune:", expanded=(st.session_state.raw_df is None)):
+    with st.expander("Data", icon=":material/tune:", expanded=True):
         st.caption("VENDOR DATA SOURCE")
         uploaded = st.file_uploader("Upload vendor CSV", type="csv", label_visibility="collapsed")
         use_sample = st.button("Use sample dataset", use_container_width=True)
@@ -203,17 +337,32 @@ with st.sidebar:
             audit.log_action("Tender Uploaded", "Procurement", "sample_vendors.csv", status="Success")
 
         st.divider()
-        st.caption("SCORING CONFIGURATION")
+        st.markdown("**Scoring Configuration**")
         can_edit = rbac.can_edit_weights()
         if not can_edit:
             st.caption(f"Read-only for role: {rbac.current_role()}")
-        weights = {
+        # Sliders are 0-100 (%) purely for display — each value is divided
+        # back to the original 0.0-1.0 fraction before it ever reaches
+        # compute_overall_score(), so the actual scoring math, weight keys,
+        # and normalize_weights() behavior are byte-for-byte unchanged.
+        weight_pcts = {
             feature: st.slider(
-                FEATURE_LABELS[feature], 0.0, 1.0, DEFAULT_WEIGHTS[feature], 0.05,
-                key=f"weight_{feature}", disabled=not can_edit,
+                FEATURE_LABELS[feature], 0, 100, int(round(DEFAULT_WEIGHTS[feature] * 100)), 5,
+                key=f"weight_{feature}", disabled=not can_edit, format="%d%%",
             )
             for feature in FEATURE_COLUMNS
         }
+        weights = {feature: pct / 100.0 for feature, pct in weight_pcts.items()}
+
+        total_pct = sum(weight_pcts.values())
+        if total_pct == 100:
+            st.success(f"Total Weight: {total_pct}%", icon=":material/check_circle:")
+        else:
+            # compute_overall_score() already normalizes any weight set to
+            # 100% internally (see src/vendor_scoring.py), so an off-100%
+            # total is not actually invalid — this is informational, not a
+            # hard gate, to avoid claiming a validation rule that doesn't exist.
+            st.caption(f"Total Weight: {total_pct}% — automatically normalized to 100% when scores are computed.")
 
         prev_weights = st.session_state.get("_prev_weights")
         if prev_weights is not None and prev_weights != weights:
@@ -229,7 +378,9 @@ with st.sidebar:
 
     api_key_present = bool(get_api_key())
     st.session_state.api_key_present = api_key_present
-    st.caption(f"Claude API · {'Enabled' if api_key_present else 'Fallback mode'}")
+    ui_components.sidebar_status_row("Claude API", connected=api_key_present)
+
+    rbac.render_sidebar_profile()
 
 if st.session_state.raw_df is None:
     st.info("Upload a CSV in the sidebar, or click **Use sample dataset** to get started.")
