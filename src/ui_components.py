@@ -205,9 +205,16 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {{ border-radius: 10px; }}
    rather than hardcoded, so this stays correct if that palette ever shifts.
    --------------------------------------------------------------------- */
 [data-testid="stSidebar"] {{ position: relative; width: 268px !important; }}
-[data-testid="stSidebarContent"] {{ height: 100vh; overflow: hidden; }}
+/* One natural scroll region for the WHOLE sidebar body — custom Data/
+   Scoring content AND the native nav together. Previously only
+   stSidebarNav scrolled internally while this container clipped
+   everything above it with overflow:hidden, which is exactly why
+   Scoring Configuration was unreachable once the Data section grew past
+   viewport height. padding-bottom reserves clearance so the last item
+   never sits behind the absolutely-positioned pinned profile footer. */
+[data-testid="stSidebarContent"] {{ height: 100vh; overflow-y: auto; overflow-x: hidden; padding-bottom: 76px; }}
 [data-testid="stSidebarUserContent"] {{ flex: 0 0 auto; padding-bottom: 0; }}
-[data-testid="stSidebarNav"] {{ flex: 1 1 auto; overflow-y: auto; min-height: 0; padding-bottom: 68px; }}
+[data-testid="stSidebarNav"] {{ flex: 0 0 auto; }}
 
 /* Native collapse button — moved out of its own reserved header row and
    onto the same line as the brand title, right-aligned. stSidebarHeader
@@ -233,8 +240,48 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {{ border-radius: 10px; }}
 .sb-section-label {{ font-size: 10.5px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(203,213,225,0.5); margin-bottom: 8px; }}
 .sb-field-label {{ font-size: 11px; color: rgba(203,213,225,0.55); margin: 4px 0 7px 0; }}
 
-.sb-status-pill {{ display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 999px; font-size: 11px; font-weight: 500; margin-top: 8px; }}
 .sb-status-dot {{ width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }}
+
+/* Compact "Vendor Data" / "Scoring Configuration" subsections inside Data */
+.sb-subhead {{ font-size: 12px; font-weight: 600; color: rgba(241,245,249,0.92); letter-spacing: 0.01em; margin: 2px 0 6px 0; }}
+.sb-data-status {{ display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: rgba(203,213,225,0.75); margin: 0 0 6px 0; }}
+.sb-data-status svg {{ flex-shrink: 0; }}
+
+/* Vendor Data buttons sit closer together than the general sidebar-button
+   rhythm — this is the two-button "Upload CSV" / "Sample Dataset" pair. */
+.st-key-upload_popover, .st-key-use_sample_btn {{ margin-bottom: -6px; }}
+
+/* Compact scoring sliders — label + live percentage share one row (the
+   native per-thumb value badge, stSliderThumbValue, tracks the thumb's X
+   position and can't be pinned to the row's right edge, so it's hidden
+   here and the row above is a custom, session_state-driven readout
+   instead); label_visibility="collapsed" removes the native label so
+   only this custom row + the bare track remain, tightly stacked. */
+.sb-slider-row {{ display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 2px 0; }}
+.sb-slider-label {{ font-size: 12px; color: rgba(226,232,240,0.85); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }}
+.sb-slider-value {{ font-size: 12px; font-weight: 600; color: #93C5FD; font-variant-numeric: tabular-nums; flex-shrink: 0; }}
+[data-testid="stSidebar"] [data-testid="stSlider"] {{ margin-bottom: -14px; }}
+[data-testid="stSidebar"] [data-testid="stSliderThumbValue"],
+[data-testid="stSidebar"] [data-testid="stTickBarMin"],
+[data-testid="stSidebar"] [data-testid="stTickBarMax"] {{ display: none !important; }}
+
+.sb-weight-total {{ display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: 8px; font-size: 12px; font-weight: 500; margin: 10px 0 2px 0; }}
+.sb-weight-total.ok {{ background: rgba(34,197,94,0.12); color: #86EFAC; }}
+.sb-weight-total.warn {{ background: rgba(245,158,11,0.12); color: #FCD34D; }}
+.sb-weight-total-left {{ display: flex; align-items: center; gap: 6px; }}
+.sb-weight-total-value {{ font-weight: 700; }}
+.sb-weight-total-note {{ font-size: 10.5px; color: rgba(252,211,77,0.85); margin: 4px 2px 6px 2px; line-height: 1.4; }}
+
+.st-key-reset_weights_btn {{ margin-top: -8px; }}
+.st-key-reset_weights_btn button {{
+    background: transparent !important; border: none !important; color: rgba(203,213,225,0.55) !important;
+    font-size: 11.5px !important; white-space: nowrap !important; text-decoration: underline;
+    text-underline-offset: 2px; min-height: 26px !important; height: 26px !important; padding: 0 !important;
+}}
+.st-key-reset_weights_btn button:hover {{ color: #F1F5F9 !important; background: transparent !important; }}
+.st-key-apply_weights_btn button {{ min-height: 34px !important; font-size: 12.5px !important; white-space: nowrap !important; }}
+.st-key-upload_popover button {{ font-size: 12.5px !important; min-height: 34px !important; }}
+.st-key-use_sample_btn button {{ font-size: 12.5px !important; min-height: 34px !important; }}
 
 .sb-api-status {{ display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: rgba(203,213,225,0.55); padding: 4px 2px; margin-top: 2px; }}
 .sb-api-status-right {{ display: flex; align-items: center; gap: 6px; }}
@@ -285,7 +332,18 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {{ border-radius: 10px; }}
 [data-testid="stSidebarCollapseButton"] button {{ border: none !important; background: transparent !important; color: rgba(203,213,225,0.55) !important; }}
 [data-testid="stSidebarCollapseButton"] button:hover {{ background-color: rgba(255,255,255,0.08) !important; color: #F1F5F9 !important; }}
 
-.st-key-sidebar_profile_footer {{ position: absolute; left: 0; right: 0; bottom: 0; background: #071A33; border-top: 1px solid rgba(255,255,255,0.08); padding: 10px var(--sb-gutter) 12px var(--sb-gutter); z-index: 5; }}
+/* position:fixed (not absolute) — stSidebarContent is now the scrolling
+   element (see the scroll fix above), and this footer lives INSIDE it in
+   the DOM (stSidebarUserContent is one flat wrapper for all custom sidebar
+   content). An absolutely-positioned descendant still scrolls along with
+   its scrolling ancestor even though its containing block is further up
+   the tree, which is exactly why the profile row was drifting upward on
+   scroll. Fixed positioning anchors it to the viewport instead, so it
+   stays visually pinned regardless of the content's scroll offset; the
+   explicit width (matching the sidebar's own width) replaces `right: 0`,
+   since that would otherwise span the full browser viewport rather than
+   just the sidebar's 268px column. */
+.st-key-sidebar_profile_footer {{ position: fixed; left: 0; bottom: 0; width: 268px; background: #071A33; border-top: 1px solid rgba(255,255,255,0.08); padding: 10px var(--sb-gutter) 12px var(--sb-gutter); z-index: 20; }}
 .sb-profile-row {{ display: flex; align-items: center; gap: 10px; }}
 .sb-profile-avatar {{ width: 32px; height: 32px; border-radius: 50%; background: rgba(37,99,235,0.25); color: #93C5FD; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }}
 .sb-profile-name {{ font-size: 12.5px; font-weight: 600; color: #F1F5F9; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
@@ -584,15 +642,25 @@ def render_sidebar_branding() -> None:
     st.markdown('<div class="sb-brand"><div class="sb-brand-title">Intelligent Procurement Advisor</div></div>', unsafe_allow_html=True)
 
 
-def sidebar_status_pill(label: str, tone: str = "neutral") -> None:
-    """Compact dot + pill status indicator for the sidebar (dark background),
-    distinct from status_badge() which targets the light main-content shell."""
-    color = _LINE_BY_TONE.get(tone, SLATE)
+def sidebar_weight_total(total_pct: int, valid: bool) -> None:
+    """Compact one-line 'Total Weight  100%' row for the Scoring Configuration
+    panel. When not valid (off 100%), adds a small note — informational, not
+    a hard block, since compute_overall_score() already auto-normalizes any
+    positive weight combination to 100% (see src/vendor_scoring.py)."""
+    tone_class = "ok" if valid else "warn"
+    icon = "check-circle" if valid else "alert-triangle"
     st.markdown(
-        f'<div class="sb-status-pill" style="background:{_hex_to_rgba(color, 0.16)};color:{color};">'
-        f'<span class="sb-status-dot" style="background:{color}"></span>{label}</div>',
+        f'<div class="sb-weight-total {tone_class}">'
+        f'<span class="sb-weight-total-left">{icon_svg(icon, size=14, color="currentColor")}<span>Total Weight</span></span>'
+        f'<span class="sb-weight-total-value">{total_pct}%</span>'
+        f'</div>',
         unsafe_allow_html=True,
     )
+    if not valid:
+        st.markdown(
+            '<div class="sb-weight-total-note">Weights are automatically normalized to 100% when scores are computed.</div>',
+            unsafe_allow_html=True,
+        )
 
 
 def sidebar_status_row(label: str, connected: bool, connected_label: str = "Connected", disconnected_label: str = "Fallback mode") -> None:

@@ -324,61 +324,115 @@ with st.sidebar:
     ui_components.render_sidebar_branding()
     tender_context.render_tender_workspace()
 
-    with st.expander("Data", icon=":material/tune:", expanded=True):
-        st.caption("VENDOR DATA SOURCE")
-        uploaded = st.file_uploader("Upload vendor CSV", type="csv", label_visibility="collapsed")
-        use_sample = st.button("Use sample dataset", use_container_width=True)
+    with st.expander("Data", icon=":material/tune:", expanded=False, key="data_section"):
+        # --- Vendor Data ----------------------------------------------------
+        st.markdown('<div class="sb-subhead">Vendor Data</div>', unsafe_allow_html=True)
 
-        if uploaded is not None:
-            st.session_state.raw_df = load_csv(uploaded)
-            audit.log_action("Tender Uploaded", "Procurement", uploaded.name, status="Success")
-        elif use_sample:
+        if st.session_state.raw_df is not None:
+            source_name = st.session_state.get("_data_source_name", "dataset")
+            st.markdown(
+                f'<div class="sb-data-status">{ui_components.icon_svg("check-circle", size=13, color="#4ADE80")}'
+                f'<span>{source_name} &middot; {len(st.session_state.raw_df)} records</span></div>',
+                unsafe_allow_html=True,
+            )
+
+        with st.popover("Upload CSV", icon=":material/upload:", use_container_width=True, key="upload_popover"):
+            uploaded = st.file_uploader("Upload vendor CSV", type="csv", label_visibility="collapsed")
+            if uploaded is not None:
+                st.session_state.raw_df = load_csv(uploaded)
+                st.session_state._data_source_name = uploaded.name
+                audit.log_action("Tender Uploaded", "Procurement", uploaded.name, status="Success")
+                st.rerun()
+
+        if st.button("Sample Dataset", use_container_width=True, key="use_sample_btn"):
             st.session_state.raw_df = load_csv(SAMPLE_PATH)
+            st.session_state._data_source_name = "sample_vendors.csv"
             audit.log_action("Tender Uploaded", "Procurement", "sample_vendors.csv", status="Success")
+            st.rerun()
 
         st.divider()
-        st.markdown("**Scoring Configuration**")
+
+        # --- Scoring Configuration -------------------------------------------
+        st.markdown('<div class="sb-subhead">Scoring Configuration</div>', unsafe_allow_html=True)
         can_edit = rbac.can_edit_weights()
         if not can_edit:
             st.caption(f"Read-only for role: {rbac.current_role()}")
+
+        # A Reset click seeds each slider's widget state to the default
+        # BEFORE the sliders below are instantiated (Streamlit widgets read
+        # their initial value from session_state if already present), then
+        # commits the defaults as the applied weights immediately.
+        if st.session_state.pop("_reset_weights_requested", False):
+            for feature in FEATURE_COLUMNS:
+                st.session_state[f"weight_{feature}"] = int(round(DEFAULT_WEIGHTS[feature] * 100))
+            st.session_state.applied_weights = dict(DEFAULT_WEIGHTS)
+
         # Sliders are 0-100 (%) purely for display — each value is divided
         # back to the original 0.0-1.0 fraction before it ever reaches
         # compute_overall_score(), so the actual scoring math, weight keys,
         # and normalize_weights() behavior are byte-for-byte unchanged.
-        weight_pcts = {
-            feature: st.slider(
+        # The native label is collapsed and replaced with a custom row
+        # (label left, percentage right, same line) — the native per-thumb
+        # value badge is hidden via CSS since its position tracks the thumb
+        # and can't be pinned to the row's right edge, so this custom row
+        # reads the widget's own session_state value to stay in sync.
+        weight_pcts = {}
+        for feature in FEATURE_COLUMNS:
+            state_key = f"weight_{feature}"
+            current_pct = st.session_state.get(state_key, int(round(DEFAULT_WEIGHTS[feature] * 100)))
+            st.markdown(
+                f'<div class="sb-slider-row"><span class="sb-slider-label">{FEATURE_LABELS[feature]}</span>'
+                f'<span class="sb-slider-value">{current_pct}%</span></div>',
+                unsafe_allow_html=True,
+            )
+            weight_pcts[feature] = st.slider(
                 FEATURE_LABELS[feature], 0, 100, int(round(DEFAULT_WEIGHTS[feature] * 100)), 5,
-                key=f"weight_{feature}", disabled=not can_edit, format="%d%%",
+                key=state_key, disabled=not can_edit, format="%d%%", label_visibility="collapsed",
             )
-            for feature in FEATURE_COLUMNS
-        }
-        weights = {feature: pct / 100.0 for feature, pct in weight_pcts.items()}
-
         total_pct = sum(weight_pcts.values())
-        if total_pct == 100:
-            st.success(f"Total Weight: {total_pct}%", icon=":material/check_circle:")
-        else:
-            # compute_overall_score() already normalizes any weight set to
-            # 100% internally (see src/vendor_scoring.py), so an off-100%
-            # total is not actually invalid — this is informational, not a
-            # hard gate, to avoid claiming a validation rule that doesn't exist.
-            st.caption(f"Total Weight: {total_pct}% — automatically normalized to 100% when scores are computed.")
+        ui_components.sidebar_weight_total(total_pct, valid=(total_pct == 100))
 
-        prev_weights = st.session_state.get("_prev_weights")
-        if prev_weights is not None and prev_weights != weights:
+        apply_clicked = st.button(
+            "Apply Weights", type="primary", use_container_width=True,
+            key="apply_weights_btn", disabled=not can_edit,
+        )
+        reset_clicked = st.button(
+            "Reset to defaults", use_container_width=True,
+            key="reset_weights_btn", disabled=not can_edit,
+        )
+
+        if reset_clicked:
             audit.log_action(
-                "Weight Configuration Changed", "Procurement", "Scoring weights",
-                previous=prev_weights, new=weights,
+                "Weight Configuration Reset", "Procurement", "Scoring weights",
+                previous=st.session_state.get("applied_weights", dict(DEFAULT_WEIGHTS)), new=dict(DEFAULT_WEIGHTS),
             )
-        st.session_state._prev_weights = dict(weights)
+            st.session_state._reset_weights_requested = True
+            st.rerun()
+
+        if apply_clicked:
+            new_weights = {feature: pct / 100.0 for feature, pct in weight_pcts.items()}
+            prev_applied = st.session_state.get("applied_weights", dict(DEFAULT_WEIGHTS))
+            if new_weights != prev_applied:
+                audit.log_action(
+                    "Weight Configuration Changed", "Procurement", "Scoring weights",
+                    previous=prev_applied, new=new_weights,
+                )
+            st.session_state.applied_weights = new_weights
+            st.rerun()
+
+        # The ranking engine only ever sees weights committed via Apply/Reset
+        # above — dragging a slider previews its percentage and the Total
+        # Weight readout live, but doesn't recompute vendor ranking until
+        # the user explicitly applies it (matches the Apply Weights action).
+        weights = st.session_state.setdefault("applied_weights", dict(DEFAULT_WEIGHTS))
 
         st.divider()
-        st.caption("ANOMALY SENSITIVITY")
+        st.markdown('<div class="sb-subhead" style="margin-bottom:4px;">Anomaly Sensitivity</div>', unsafe_allow_html=True)
         contamination = st.slider("Expected anomaly rate", 0.02, 0.3, 0.1, 0.01, key="contamination")
 
     api_key_present = bool(get_api_key())
     st.session_state.api_key_present = api_key_present
-    ui_components.sidebar_status_row("Claude API", connected=api_key_present)
+    ui_components.sidebar_status_row("AI Service", connected=api_key_present, connected_label="Online")
 
     rbac.render_sidebar_profile()
 

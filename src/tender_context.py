@@ -12,16 +12,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src import audit, rbac, tender_form, tender_repository, ui_components
-
-_STATUS_TONE = {
-    "Draft": "neutral",
-    "Open": "info",
-    "Under Evaluation": "warning",
-    "Awaiting Approval": "warning",
-    "Awarded": "success",
-    "Closed": "neutral",
-}
+from src import audit, rbac, tender_form, tender_repository
 
 
 def render_tender_workspace() -> None:
@@ -45,11 +36,6 @@ def render_tender_workspace() -> None:
             format_func=lambda tid: options[tid], key="tw_tender_select",
             label_visibility="collapsed",
         )
-
-        tender = tender_repository.get_tender(selected_id)
-        if tender:
-            status = tender.get("status", "Draft")
-            ui_components.sidebar_status_pill(status, tone=_STATUS_TONE.get(status, "neutral"))
 
         if selected_id != prev_id:
             st.session_state.selected_tender_id = selected_id

@@ -191,7 +191,7 @@ def render_sidebar_profile() -> None:
                 unsafe_allow_html=True,
             )
         with row_r:
-            with st.popover("", icon=":material/expand_more:", use_container_width=True):
+            with st.popover("", use_container_width=True):
                 with st.container(key="sidebar_profile_popover"):
                     st.caption("Signed in as")
                     st.markdown(f"**{user['name']}**")
