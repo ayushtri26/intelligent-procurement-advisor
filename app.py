@@ -38,18 +38,21 @@ ui_components.inject_global_css()
 
 # --------------------------------------------------------------------------
 # Login gate — Google/OIDC sign-in via Streamlit's native st.login(). Nothing
-# below this block renders until the user is authenticated. When no identity
-# provider is configured yet (local dev without .streamlit/secrets.toml), a
-# clearly-labeled demo-mode fallback keeps the rest of the app testable —
-# see .streamlit/secrets.toml.example for the real Google OAuth setup.
+# below this block renders until the user is authenticated. The "Explore
+# Demo" option is a secondary, always-available identity path (not a
+# configuration fallback) so the app stays testable without exposing any
+# setup detail to end users — see .streamlit/secrets.toml.example for the
+# real Google OAuth setup.
 #
 # There is no password-based auth anywhere in this app — real identity comes
-# exclusively from Google OIDC (or the local demo-mode fallback below), and
-# role is derived automatically from the signed-in name (src/rbac.py). The
-# separate "Admin Portal" screen is therefore a distinct, distinctly-styled
-# entry point rather than a second credential system: it triggers the exact
-# same st.login()/demo-mode path, just presented as its own secure-looking
-# surface per the design brief, with no fabricated password check.
+# exclusively from Google OIDC (or the demo path above), and role is derived
+# automatically from the signed-in name (src/rbac.py). The separate "Admin
+# Portal" screen is therefore a distinct, distinctly-styled entry point
+# rather than a second credential system: it triggers the exact same
+# st.login() call, just presented as its own secure-looking surface per the
+# design brief, with no fabricated password check and no demo path (an
+# admin identity is reachable via demo on the main screen, since any name
+# not in ROLE_NAME_MAP falls back to Administrator).
 # --------------------------------------------------------------------------
 def _auth_configured() -> bool:
     try:
@@ -65,32 +68,43 @@ def _auth_shell_css() -> None:
         <style>
         [data-testid="stSidebar"] {{ display: none; }}
         [data-testid="stHeader"] {{ background: transparent; }}
-        [data-testid="stMainBlockContainer"] {{ padding-top: 5vh; padding-bottom: 5vh; }}
-        [data-testid="stAppViewContainer"] {{ background: #F3F5F9; }}
+        [data-testid="stMainBlockContainer"] {{ padding-top: 4vh; padding-bottom: 4vh; }}
+        [data-testid="stAppViewContainer"] {{
+            background:
+                radial-gradient(ellipse 560px 420px at 50% 38%, rgba(37,99,235,0.07), rgba(37,99,235,0) 70%),
+                #F3F5F9;
+        }}
 
         .auth-badge {{
-            width: 52px; height: 52px; border-radius: 14px;
+            width: 60px; height: 60px; border-radius: 15px;
             background: linear-gradient(155deg, #2563EB, #1D4ED8);
             display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 18px auto; box-shadow: 0 6px 16px rgba(37,99,235,0.28);
+            margin: 0 auto 14px auto; box-shadow: 0 6px 16px rgba(37,99,235,0.28);
         }}
         .auth-badge.admin {{ background: linear-gradient(155deg, #1E293B, #0B1526); box-shadow: 0 6px 16px rgba(15,23,42,0.35); }}
-        .auth-badge svg {{ width: 26px; height: 26px; }}
+        .auth-badge svg {{ width: 28px; height: 28px; }}
 
-        .auth-title {{ font-size: 22px; font-weight: 700; color: #0F172A; text-align: center; line-height: 1.3; }}
-        .auth-subtitle {{ font-size: 13.5px; color: #64748B; text-align: center; margin-top: 6px; margin-bottom: 26px; line-height: 1.5; }}
+        .auth-brand {{ font-size: 13px; font-weight: 700; color: #2563EB; text-align: center;
+            text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }}
 
-        .auth-divider-row {{ display: flex; align-items: center; gap: 12px; margin: 18px 0; }}
+        .auth-title {{ font-size: 21px; font-weight: 700; color: #0F172A; text-align: center; line-height: 1.3; }}
+        .auth-subtitle {{ font-size: 13px; color: #64748B; text-align: center; margin-top: 5px; margin-bottom: 20px; line-height: 1.5; }}
+
+        .auth-divider-row {{ display: flex; align-items: center; gap: 12px; margin: 16px 0; }}
         .auth-divider-line {{ flex: 1; height: 1px; background: #E2E8F0; }}
         .auth-divider-text {{ font-size: 11.5px; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }}
 
-        .auth-secondary-text {{ text-align: center; font-size: 13px; color: #94A3B8; margin-top: 2px; }}
-        .auth-security-note {{ text-align: center; font-size: 11.5px; color: #94A3B8; margin-top: 18px; line-height: 1.5; }}
+        .auth-secondary-heading {{ text-align: center; font-size: 13.5px; font-weight: 600; color: #334155; margin-top: 2px; }}
+        .auth-secondary-caption {{ text-align: center; font-size: 12px; color: #94A3B8; margin-top: 3px; margin-bottom: 12px; line-height: 1.4; }}
+        .auth-security-note {{ text-align: center; font-size: 11.5px; color: #94A3B8; margin-top: 16px; line-height: 1.5; }}
+
+        .auth-admin-label {{ text-align: center; font-size: 12.5px; font-weight: 600; color: #64748B; margin-bottom: 8px; }}
 
         .st-key-login_card, .st-key-admin_card {{
             border: 1px solid #E5E9F0 !important; border-radius: 16px !important;
             box-shadow: 0 1px 2px rgba(15,23,42,0.03), 0 20px 40px -18px rgba(15,23,42,0.14) !important;
-            padding: 36px 34px 28px 34px !important; background: #FFFFFF !important;
+            padding: 32px 32px 26px 32px !important; background: #FFFFFF !important;
+            max-width: 460px; margin: 0 auto;
         }}
         .st-key-admin_card {{ border-color: #1E293B !important; }}
 
@@ -98,27 +112,37 @@ def _auth_shell_css() -> None:
         .st-key-admin_card [data-testid="stBaseButton-primary"],
         .st-key-login_card [data-testid="stBaseButton-secondary"],
         .st-key-admin_card [data-testid="stBaseButton-secondary"] {{
-            min-height: 46px !important; border-radius: 10px !important; font-weight: 600 !important; font-size: 14.5px !important;
+            min-height: 44px !important; border-radius: 10px !important; font-weight: 600 !important; font-size: 14px !important;
         }}
         .st-key-admin_card [data-testid="stBaseButton-primary"] {{ background-color: #0F172A !important; border-color: #0F172A !important; }}
         .st-key-admin_card [data-testid="stBaseButton-primary"]:hover {{ background-color: #1E293B !important; }}
 
-        .st-key-google_btn button {{ position: relative; padding-left: 38px !important; }}
+        .st-key-google_btn button {{
+            position: relative; padding-left: 38px !important;
+            background-color: #FFFFFF !important; color: #1E293B !important; border: 1px solid #DADCE0 !important;
+        }}
         .st-key-google_btn button p {{ padding-left: 4px; }}
+        .st-key-google_btn button:hover {{ background-color: #F8FAFC !important; border-color: #C7CBD1 !important; }}
         .st-key-google_btn button::before {{
             content: ""; position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
             width: 18px; height: 18px;
             background-image: url("{google_icon}"); background-size: contain; background-repeat: no-repeat;
         }}
 
-        .st-key-admin_link_btn button, .st-key-back_to_login_btn button {{
+        .st-key-admin_link_btn button {{
+            background: transparent !important; border: 1px solid #E2E8F0 !important; color: #334155 !important;
+            font-weight: 600 !important; min-height: 42px !important; box-shadow: none !important;
+        }}
+        .st-key-admin_link_btn button:hover {{ border-color: #94A3B8 !important; background: #F8FAFC !important; }}
+
+        .st-key-back_to_login_btn button {{
             background: transparent !important; border: none !important; color: #475569 !important;
             font-weight: 600 !important; min-height: 34px !important; box-shadow: none !important;
         }}
-        .st-key-admin_link_btn button:hover, .st-key-back_to_login_btn button:hover {{ color: #1D4ED8 !important; text-decoration: underline; }}
+        .st-key-back_to_login_btn button:hover {{ color: #1D4ED8 !important; text-decoration: underline; }}
 
         @media (max-width: 640px) {{
-            .st-key-login_card, .st-key-admin_card {{ padding: 26px 18px 22px 18px !important; }}
+            .st-key-login_card, .st-key-admin_card {{ padding: 24px 18px 20px 18px !important; }}
         }}
         </style>
         """,
@@ -133,11 +157,29 @@ def _auth_badge(admin: bool = False) -> None:
 
 
 def _demo_mode_block(key_prefix: str) -> None:
-    """Shared local-dev fallback (no real backend involved) — identical
-    behavior on both screens, just re-keyed so the widgets don't collide."""
-    with st.expander("Continue in demo mode"):
-        demo_name = st.text_input("Your name", key=f"{key_prefix}_demo_login_name", placeholder="e.g. Ayush Tripathi")
-        if st.button("Continue as demo user", key=f"{key_prefix}_demo_login_btn", use_container_width=True, disabled=not demo_name.strip()):
+    """Secondary, de-emphasized demo access — same underlying identity as
+    before (rbac.set_user with is_real_login=False), just presented as a
+    lightweight secondary path rather than the primary sign-in method."""
+    st.markdown(
+        '<div class="auth-secondary-heading">Explore Demo</div>'
+        '<div class="auth-secondary-caption">Preview the procurement workspace using sample data.</div>',
+        unsafe_allow_html=True,
+    )
+    open_key = f"_{key_prefix}_demo_open"
+    if not st.session_state.get(open_key):
+        with st.container(key=f"{key_prefix}_demo_open_wrap"):
+            if st.button("Explore Demo →", key=f"{key_prefix}_demo_open_btn", use_container_width=True):
+                st.session_state[open_key] = True
+                st.rerun()
+    else:
+        demo_name = st.text_input(
+            "Your name", key=f"{key_prefix}_demo_login_name",
+            placeholder="e.g. Ayush Tripathi", label_visibility="collapsed",
+        )
+        if st.button(
+            "Continue as demo user", key=f"{key_prefix}_demo_login_btn",
+            use_container_width=True, disabled=not demo_name.strip(),
+        ):
             rbac.set_user(demo_name.strip(), "", is_real_login=False)
             st.rerun()
 
@@ -149,6 +191,7 @@ def _render_login_screen(auth_ready: bool) -> None:
         with st.container(key="login_card", border=True):
             _auth_badge()
             st.markdown(
+                '<div class="auth-brand">Intelligent Procurement Advisor</div>'
                 '<div class="auth-title">Welcome back</div>'
                 '<div class="auth-subtitle">Sign in to access your procurement intelligence workspace.</div>',
                 unsafe_allow_html=True,
@@ -158,24 +201,19 @@ def _render_login_screen(auth_ready: bool) -> None:
                 with st.container(key="google_btn"):
                     if st.button("Continue with Google", type="primary", use_container_width=True):
                         st.login()
-            else:
-                with st.container(key="google_btn"):
-                    st.button("Continue with Google", type="primary", use_container_width=True, disabled=True)
-                st.caption("Google sign-in isn't configured yet — add an `[auth]` block to `.streamlit/secrets.toml` (see `secrets.toml.example`).")
-                _demo_mode_block("login")
+                st.markdown(
+                    '<div class="auth-divider-row"><div class="auth-divider-line"></div>'
+                    '<div class="auth-divider-text">or</div><div class="auth-divider-line"></div></div>',
+                    unsafe_allow_html=True,
+                )
+
+            _demo_mode_block("login")
 
             st.markdown(
-                '<div class="auth-divider-row"><div class="auth-divider-line"></div>'
-                '<div class="auth-divider-text">or</div><div class="auth-divider-line"></div></div>',
+                '<div class="auth-divider-row" style="margin-top:22px;"><div class="auth-divider-line"></div></div>',
                 unsafe_allow_html=True,
             )
-            st.markdown('<div class="auth-secondary-text">New to the platform? Request access</div>', unsafe_allow_html=True)
-
-            st.markdown(
-                '<div class="auth-divider-row" style="margin-top:24px;"><div class="auth-divider-line"></div></div>',
-                unsafe_allow_html=True,
-            )
-            st.markdown('<div class="auth-secondary-text" style="margin-bottom:10px;">Administrator?</div>', unsafe_allow_html=True)
+            st.markdown('<div class="auth-admin-label">Administrator?</div>', unsafe_allow_html=True)
             with st.container(key="admin_link_btn"):
                 if st.button("Access Admin Portal →", icon=":material/lock:", use_container_width=True, key="_go_admin_portal"):
                     st.session_state._show_admin_portal = True
@@ -197,10 +235,6 @@ def _render_admin_portal_screen(auth_ready: bool) -> None:
             if auth_ready:
                 if st.button("Continue Securely", type="primary", use_container_width=True, key="_admin_continue_btn"):
                     st.login()
-            else:
-                st.button("Continue Securely", type="primary", use_container_width=True, disabled=True, key="_admin_continue_btn")
-                st.caption("Google sign-in isn't configured yet — add an `[auth]` block to `.streamlit/secrets.toml` (see `secrets.toml.example`).")
-                _demo_mode_block("admin")
 
             with st.container(key="back_to_login_btn"):
                 if st.button("← Back to User Sign In", use_container_width=True, key="_back_to_login"):
