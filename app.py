@@ -71,38 +71,38 @@ def _auth_shell_css() -> None:
         [data-testid="stMainBlockContainer"] {{ padding-top: 4vh; padding-bottom: 4vh; }}
         [data-testid="stAppViewContainer"] {{
             background:
-                radial-gradient(ellipse 560px 420px at 50% 38%, rgba(37,99,235,0.07), rgba(37,99,235,0) 70%),
-                #F3F5F9;
+                radial-gradient(ellipse 560px 420px at 50% 38%, rgba(37,99,235,0.04), rgba(37,99,235,0) 70%),
+                #F5F7FA;
         }}
 
         .auth-badge {{
             width: 60px; height: 60px; border-radius: 15px;
-            background: linear-gradient(155deg, #2563EB, #1D4ED8);
+            background: linear-gradient(155deg, #2458A6, #174A8B);
             display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 14px auto; box-shadow: 0 6px 16px rgba(37,99,235,0.28);
+            margin: 0 auto 14px auto; box-shadow: 0 6px 16px rgba(23,74,139,0.28);
         }}
         .auth-badge.admin {{ background: linear-gradient(155deg, #1E293B, #0B1526); box-shadow: 0 6px 16px rgba(15,23,42,0.35); }}
         .auth-badge svg {{ width: 28px; height: 28px; }}
 
-        .auth-brand {{ font-size: 13px; font-weight: 700; color: #2563EB; text-align: center;
+        .auth-brand {{ font-size: 13px; font-weight: 700; color: #2458A6; text-align: center;
             text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }}
 
-        .auth-title {{ font-size: 21px; font-weight: 700; color: #0F172A; text-align: center; line-height: 1.3; }}
-        .auth-subtitle {{ font-size: 13px; color: #64748B; text-align: center; margin-top: 5px; margin-bottom: 20px; line-height: 1.5; }}
+        .auth-title {{ font-size: 21px; font-weight: 700; color: #0F2744; text-align: center; line-height: 1.3; }}
+        .auth-subtitle {{ font-size: 13px; color: #5F6F82; text-align: center; margin-top: 5px; margin-bottom: 20px; line-height: 1.5; }}
 
         .auth-divider-row {{ display: flex; align-items: center; gap: 12px; margin: 16px 0; }}
-        .auth-divider-line {{ flex: 1; height: 1px; background: #E2E8F0; }}
+        .auth-divider-line {{ flex: 1; height: 1px; background: #E5EAF0; }}
         .auth-divider-text {{ font-size: 11.5px; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }}
 
-        .auth-secondary-heading {{ text-align: center; font-size: 13.5px; font-weight: 600; color: #334155; margin-top: 2px; }}
-        .auth-secondary-caption {{ text-align: center; font-size: 12px; color: #94A3B8; margin-top: 3px; margin-bottom: 12px; line-height: 1.4; }}
-        .auth-security-note {{ text-align: center; font-size: 11.5px; color: #94A3B8; margin-top: 16px; line-height: 1.5; }}
+        .auth-secondary-heading {{ text-align: center; font-size: 13.5px; font-weight: 600; color: #183B66; margin-top: 2px; }}
+        .auth-secondary-caption {{ text-align: center; font-size: 12px; color: #8896A8; margin-top: 3px; margin-bottom: 12px; line-height: 1.4; }}
+        .auth-security-note {{ text-align: center; font-size: 11.5px; color: #8A98AA; margin-top: 16px; line-height: 1.5; }}
 
         .auth-admin-label {{ text-align: center; font-size: 12.5px; font-weight: 600; color: #64748B; margin-bottom: 8px; }}
 
         .st-key-login_card, .st-key-admin_card {{
-            border: 1px solid #E5E9F0 !important; border-radius: 16px !important;
-            box-shadow: 0 1px 2px rgba(15,23,42,0.03), 0 20px 40px -18px rgba(15,23,42,0.14) !important;
+            border: 1px solid #E2E8F0 !important; border-radius: 16px !important;
+            box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08) !important;
             padding: 32px 32px 26px 32px !important; background: #FFFFFF !important;
             max-width: 460px; margin: 0 auto;
         }}
@@ -117,29 +117,46 @@ def _auth_shell_css() -> None:
         .st-key-admin_card [data-testid="stBaseButton-primary"] {{ background-color: #0F172A !important; border-color: #0F172A !important; }}
         .st-key-admin_card [data-testid="stBaseButton-primary"]:hover {{ background-color: #1E293B !important; }}
 
+        .st-key-login_card [data-testid="stBaseButton-secondary"]:hover,
+        .st-key-admin_card [data-testid="stBaseButton-secondary"]:hover {{
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+        }}
+        .st-key-login_card button:focus-visible, .st-key-admin_card button:focus-visible {{
+            outline: 3px solid rgba(37, 99, 235, 0.18) !important; outline-offset: 1px;
+        }}
+
         .st-key-google_btn button {{
             position: relative; padding-left: 38px !important;
-            background-color: #FFFFFF !important; color: #1E293B !important; border: 1px solid #DADCE0 !important;
+            background-color: #FFFFFF !important; color: #172B4D !important; border: 1px solid #D8E0EA !important;
         }}
         .st-key-google_btn button p {{ padding-left: 4px; }}
-        .st-key-google_btn button:hover {{ background-color: #F8FAFC !important; border-color: #C7CBD1 !important; }}
+        .st-key-google_btn button:hover {{ background-color: #F8FAFC !important; border-color: #B9C7D8 !important; }}
         .st-key-google_btn button::before {{
             content: ""; position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
             width: 18px; height: 18px;
             background-image: url("{google_icon}"); background-size: contain; background-repeat: no-repeat;
         }}
 
+        .st-key-login_demo_open_wrap button, .st-key-admin_demo_open_wrap button,
+        .st-key-login_demo_confirm_wrap button, .st-key-admin_demo_confirm_wrap button {{
+            background-color: #F8FAFC !important; border: 1px solid #C9D5E3 !important; color: #234A75 !important;
+        }}
+        .st-key-login_demo_open_wrap button:hover, .st-key-admin_demo_open_wrap button:hover,
+        .st-key-login_demo_confirm_wrap button:hover, .st-key-admin_demo_confirm_wrap button:hover {{
+            background-color: #EEF4FA !important; border-color: #AEBFD2 !important;
+        }}
+
         .st-key-admin_link_btn button {{
-            background: transparent !important; border: 1px solid #E2E8F0 !important; color: #334155 !important;
+            background: #F8FAFC !important; border: 1px solid #CBD5E1 !important; color: #16395F !important;
             font-weight: 600 !important; min-height: 42px !important; box-shadow: none !important;
         }}
-        .st-key-admin_link_btn button:hover {{ border-color: #94A3B8 !important; background: #F8FAFC !important; }}
+        .st-key-admin_link_btn button:hover {{ border-color: #9FB3C8 !important; background: #EEF3F8 !important; }}
 
         .st-key-back_to_login_btn button {{
             background: transparent !important; border: none !important; color: #475569 !important;
             font-weight: 600 !important; min-height: 34px !important; box-shadow: none !important;
         }}
-        .st-key-back_to_login_btn button:hover {{ color: #1D4ED8 !important; text-decoration: underline; }}
+        .st-key-back_to_login_btn button:hover {{ color: #174A8B !important; text-decoration: underline; }}
 
         @media (max-width: 640px) {{
             .st-key-login_card, .st-key-admin_card {{ padding: 24px 18px 20px 18px !important; }}
@@ -176,12 +193,13 @@ def _demo_mode_block(key_prefix: str) -> None:
             "Your name", key=f"{key_prefix}_demo_login_name",
             placeholder="e.g. Ayush Tripathi", label_visibility="collapsed",
         )
-        if st.button(
-            "Continue as demo user", key=f"{key_prefix}_demo_login_btn",
-            use_container_width=True, disabled=not demo_name.strip(),
-        ):
-            rbac.set_user(demo_name.strip(), "", is_real_login=False)
-            st.rerun()
+        with st.container(key=f"{key_prefix}_demo_confirm_wrap"):
+            if st.button(
+                "Continue as demo user", key=f"{key_prefix}_demo_login_btn",
+                use_container_width=True, disabled=not demo_name.strip(),
+            ):
+                rbac.set_user(demo_name.strip(), "", is_real_login=False)
+                st.rerun()
 
 
 def _render_login_screen(auth_ready: bool) -> None:
